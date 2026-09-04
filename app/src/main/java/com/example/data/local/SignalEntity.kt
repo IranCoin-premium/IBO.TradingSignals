@@ -21,5 +21,6 @@ data class SignalEntity(
     val rationale: String,
     val recommendedBrokers: String, // comma separated
     val status: String, // "ACTIVE", "WON", "LOST", "NO_TRADE"
+    val isFavorite: Boolean = false,
     val timestamp: Long = System.currentTimeMillis()
 )

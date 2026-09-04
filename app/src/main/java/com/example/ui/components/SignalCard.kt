@@ -24,6 +24,8 @@ import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Psychology
@@ -46,7 +48,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.local.SignalEntity
@@ -60,6 +65,7 @@ import com.example.ui.theme.CyanNeon
 import com.example.ui.theme.EmeraldDark
 import com.example.ui.theme.EmeraldGlow
 import com.example.ui.theme.EmeraldNeon
+import com.example.ui.theme.GoldGlow
 import com.example.ui.theme.SlateDark800
 import com.example.ui.theme.SlateDark900
 import com.example.ui.theme.TextMuted
@@ -70,8 +76,10 @@ import com.example.ui.theme.TextSecondary
 fun SignalCard(
     signal: SignalEntity,
     modifier: Modifier = Modifier,
+    onClick: ((SignalEntity) -> Unit)? = null,
     onBrokerClick: ((String) -> Unit)? = null,
-    onReportClick: ((SignalEntity) -> Unit)? = null
+    onReportClick: ((SignalEntity) -> Unit)? = null,
+    onToggleFavorite: ((SignalEntity) -> Unit)? = null
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -97,17 +105,38 @@ fun SignalCard(
         else -> "NO TRADE (عدم ورود)"
     }
 
+    val borderBrush = when {
+        isCall -> Brush.linearGradient(listOf(EmeraldNeon, CyanNeon.copy(alpha = 0.6f)))
+        isPut -> Brush.linearGradient(listOf(CrimsonRed, AmberGold.copy(alpha = 0.6f)))
+        else -> Brush.linearGradient(listOf(AmberGold.copy(alpha = 0.7f), SlateDark800))
+    }
+
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
+            .clip(RoundedCornerShape(20.dp))
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        SlateDark900.copy(alpha = 0.95f),
+                        CardSurface
+                    )
+                )
+            )
             .border(
-                1.dp,
-                if (isNoTrade) AmberGold.copy(alpha = 0.4f) else CardBorder,
-                RoundedCornerShape(18.dp)
+                1.2.dp,
+                borderBrush,
+                RoundedCornerShape(20.dp)
+            )
+            .then(
+                if (onClick != null) {
+                    Modifier.clickable { onClick(signal) }
+                } else {
+                    Modifier
+                }
             ),
-        colors = CardDefaults.cardColors(containerColor = CardSurface),
-        shape = RoundedCornerShape(18.dp)
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+        shape = RoundedCornerShape(20.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             // Header: Asset, Category, Direction Badge
@@ -152,14 +181,34 @@ fun SignalCard(
                     )
                 }
 
-                // Direction Pill
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(directionBg)
-                        .border(1.dp, directionColor.copy(alpha = 0.8f), RoundedCornerShape(12.dp))
-                        .padding(horizontal = 10.dp, vertical = 6.dp)
-                ) {
+                // Direction Pill & Favorite Button
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (onToggleFavorite != null) {
+                        Box(
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(if (signal.isFavorite) AmberGold.copy(alpha = 0.2f) else SlateDark800)
+                                .border(0.8.dp, if (signal.isFavorite) AmberGold else CardBorder, CircleShape)
+                                .clickable { onToggleFavorite(signal) }
+                                .padding(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (signal.isFavorite) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                                contentDescription = "نشان کردن",
+                                tint = if (signal.isFavorite) AmberGold else TextMuted,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(6.dp))
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(directionBg)
+                            .border(1.dp, directionColor.copy(alpha = 0.8f), RoundedCornerShape(12.dp))
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = when {
@@ -183,6 +232,7 @@ fun SignalCard(
                     }
                 }
             }
+        }
 
             Spacer(modifier = Modifier.height(14.dp))
 
@@ -338,14 +388,7 @@ fun SignalCard(
 
                     Spacer(modifier = Modifier.height(6.dp))
 
-                    Text(
-                        text = signal.rationale,
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            lineHeight = 18.sp,
-                            fontSize = 11.5.sp
-                        ),
-                        color = TextPrimary
-                    )
+                    HighlightedRationaleText(text = signal.rationale)
 
                     if (onReportClick != null) {
                         Spacer(modifier = Modifier.height(10.dp))
@@ -381,3 +424,50 @@ fun SignalCard(
         }
     }
 }
+
+@Composable
+fun HighlightedRationaleText(
+    text: String,
+    modifier: Modifier = Modifier
+) {
+    val annotatedString = remember(text) {
+        buildAnnotatedString {
+            val words = text.split(" ")
+            words.forEachIndexed { index, word ->
+                when {
+                    word.contains("CALL", ignoreCase = true) || word.contains("صعودی") || word.contains("خرید") -> {
+                        withStyle(SpanStyle(color = EmeraldGlow, fontWeight = FontWeight.Black)) { append(word) }
+                    }
+                    word.contains("PUT", ignoreCase = true) || word.contains("نزولی") || word.contains("فروش") -> {
+                        withStyle(SpanStyle(color = CrimsonGlow, fontWeight = FontWeight.Black)) { append(word) }
+                    }
+                    word.contains("OTC", ignoreCase = true) -> {
+                        withStyle(SpanStyle(color = CyanGlow, fontWeight = FontWeight.Bold)) { append(word) }
+                    }
+                    word.contains("00s") || word.contains("ثانیه") || word.contains("انقضا") || word.contains("دقیقه") -> {
+                        withStyle(SpanStyle(color = AmberGold, fontWeight = FontWeight.Bold)) { append(word) }
+                    }
+                    word.contains("RSI") || word.contains("MACD") || word.contains("EMA") || word.contains("Pivot") || word.contains("مقاومت") || word.contains("حمایت") -> {
+                        withStyle(SpanStyle(color = GoldGlow, fontWeight = FontWeight.Bold)) { append(word) }
+                    }
+                    word.contains("وتو") || word.contains("هشدار") || word.contains("ریسک") -> {
+                        withStyle(SpanStyle(color = CrimsonRed, fontWeight = FontWeight.Bold)) { append(word) }
+                    }
+                    else -> {
+                        withStyle(SpanStyle(color = TextPrimary)) { append(word) }
+                    }
+                }
+                if (index < words.size - 1) append(" ")
+            }
+        }
+    }
+    Text(
+        text = annotatedString,
+        style = MaterialTheme.typography.bodySmall.copy(
+            lineHeight = 20.sp,
+            fontSize = 11.8.sp
+        ),
+        modifier = modifier
+    )
+}
+

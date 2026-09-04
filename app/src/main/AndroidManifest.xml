@@ -61,6 +61,18 @@
             </intent-filter>
         </service>
 
+        <!-- Home Screen App Widget -->
+        <receiver
+            android:name=".widget.SignalWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/signal_widget_info" />
+        </receiver>
+
         <!-- Default notification icon and color for FCM -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"

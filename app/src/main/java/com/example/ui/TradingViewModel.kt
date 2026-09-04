@@ -14,6 +14,7 @@ import com.example.data.local.UserSubscriptionEntity
 import com.example.data.repository.BrokerItem
 import com.example.data.repository.OfflineCacheSyncStatus
 import com.example.data.repository.TradingRepository
+import com.example.fcm.FcmSignalBroadcaster
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -46,6 +47,15 @@ class TradingViewModel(application: Application) : AndroidViewModel(application)
 
     val activeSignals: StateFlow<List<SignalEntity>> = repository.activeSignals
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val favoriteSignals: StateFlow<List<SignalEntity>> = repository.favoriteSignals
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun toggleFavorite(signal: SignalEntity) {
+        viewModelScope.launch {
+            repository.toggleFavoriteSignal(signal)
+        }
+    }
 
     val plans: StateFlow<List<PlanEntity>> = repository.allPlans
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -156,6 +166,19 @@ class TradingViewModel(application: Application) : AndroidViewModel(application)
     fun addSignal(signal: SignalEntity) {
         viewModelScope.launch {
             repository.addSignal(signal)
+            FcmSignalBroadcaster.broadcastHighAccuracySignal(getApplication(), signal)
+
+            // Persian Voice Alert
+            com.example.util.SignalAudioAlertHelper.speakSignalAlert(getApplication(), signal)
+
+            // Update Home Screen Widget
+            com.example.widget.SignalWidgetProvider.updateAllWidgets(
+                context = getApplication(),
+                asset = signal.asset,
+                direction = "${signal.direction} 🟢",
+                confidence = "وین‌ریت: ${signal.confidenceScore}٪",
+                expiry = "انقضا: ${signal.expiry}"
+            )
         }
     }
 

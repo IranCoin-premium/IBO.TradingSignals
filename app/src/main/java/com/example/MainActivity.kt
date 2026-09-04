@@ -54,6 +54,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.fcm.FcmNotificationHelper
 import com.example.ui.TradingViewModel
+import com.example.ui.components.AnimatedBottomNavBar
 import com.example.ui.components.IranianMarketsSheet
 import com.example.ui.components.SupportChatModal
 import com.example.ui.screens.AdminScreen
@@ -126,10 +127,12 @@ class MainActivity : ComponentActivity() {
                     val authSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
                     val marketsSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-                    // 1. Initialize FCM Notification Channel & Topics (high_accuracy_signals)
+                    // 1. Initialize FCM, Audio Alerts, Live Ticker
                     LaunchedEffect(Unit) {
                         FcmNotificationHelper.initNotificationChannel(context)
                         FcmNotificationHelper.subscribeToTopics(context)
+                        com.example.util.SignalAudioAlertHelper.init(context)
+                        com.example.util.LiveMarketTickerService.startStreaming()
                     }
 
                     // 2. Android 13+ (API 33) Runtime Notification Permission
@@ -178,46 +181,19 @@ class MainActivity : ComponentActivity() {
                             .background(SlateDark950),
                         bottomBar = {
                             if (showBottomBar) {
-                                NavigationBar(
-                                    containerColor = SlateDark900,
-                                    tonalElevation = androidx.compose.ui.unit.Dp(0f)
-                                ) {
-                                    bottomNavItems.forEach { screen ->
-                                        val selected = currentRoute == screen.route
-                                        NavigationBarItem(
-                                            icon = {
-                                                Icon(
-                                                    imageVector = screen.icon,
-                                                    contentDescription = screen.title
-                                                )
-                                            },
-                                            label = {
-                                                Text(
-                                                    text = screen.title,
-                                                    fontSize = 10.5.sp,
-                                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
-                                                )
-                                            },
-                                            selected = selected,
-                                            onClick = {
-                                                if (currentRoute != screen.route) {
-                                                    navController.navigate(screen.route) {
-                                                        popUpTo(Screen.Home.route) { saveState = true }
-                                                        launchSingleTop = true
-                                                        restoreState = true
-                                                    }
-                                                }
-                                            },
-                                            colors = NavigationBarItemDefaults.colors(
-                                                selectedIconColor = Color.Black,
-                                                selectedTextColor = EmeraldGlow,
-                                                indicatorColor = EmeraldNeon,
-                                                unselectedIconColor = TextSecondary,
-                                                unselectedTextColor = TextSecondary
-                                            )
-                                        )
+                                AnimatedBottomNavBar(
+                                    items = bottomNavItems,
+                                    currentRoute = currentRoute,
+                                    onItemSelected = { screen ->
+                                        if (currentRoute != screen.route) {
+                                            navController.navigate(screen.route) {
+                                                popUpTo(Screen.Home.route) { saveState = true }
+                                                launchSingleTop = true
+                                                restoreState = true
+                                            }
+                                        }
                                     }
-                                }
+                                )
                             }
                         }
                     ) { innerPadding ->
@@ -258,6 +234,7 @@ class MainActivity : ComponentActivity() {
                                         signals = signals,
                                         brokers = viewModel.brokers,
                                         userPlan = userPlan,
+                                        onAddTradeLog = { viewModel.addTradeLog(it) },
                                         onOpenSubscriptions = {
                                             navController.navigate(Screen.Subscriptions.route)
                                         },
@@ -284,7 +261,8 @@ class MainActivity : ComponentActivity() {
                                         },
                                         onOpenArticles = {
                                             navController.navigate(Screen.Article.route)
-                                        },
+                                         },
+                                         onToggleFavorite = { viewModel.toggleFavorite(it) },
                                         onSubmitFeedback = { feedbackType, asset, signalId, reasonCategory, description, rating, contactInfo ->
                                             viewModel.submitFeedback(
                                                 feedbackType = feedbackType,

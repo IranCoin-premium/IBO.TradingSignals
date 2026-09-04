@@ -2,6 +2,13 @@ package com.example.ui.screens
 
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -15,6 +22,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -29,6 +37,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.AutoGraph
 import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Headphones
@@ -57,6 +67,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -65,16 +76,25 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.R
 import com.example.data.local.SignalEntity
 import com.example.data.repository.BrokerItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.rememberModalBottomSheetState
 import com.example.ui.components.BrandLogomotion
 import com.example.ui.components.BrokerTimelineMarquee
+import com.example.ui.components.QuickJournalLogDialog
 import com.example.ui.components.SignalCard
+import com.example.ui.components.SignalDetailBottomSheet
+import com.example.ui.components.SignalFilterBar
+import com.example.ui.components.SmartRiskCalculatorModal
 import com.example.ui.components.SubmitFeedbackDialog
 import com.example.ui.theme.AmberGold
 import com.example.ui.theme.CardBorder
@@ -85,6 +105,7 @@ import com.example.ui.theme.CyanNeon
 import com.example.ui.theme.EmeraldDark
 import com.example.ui.theme.EmeraldGlow
 import com.example.ui.theme.EmeraldNeon
+import com.example.ui.theme.GoldGlow
 import com.example.ui.theme.SlateDark800
 import com.example.ui.theme.SlateDark900
 import com.example.ui.theme.SlateDark950
@@ -92,6 +113,7 @@ import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SignalsHomeScreen(
     signals: List<SignalEntity>,
@@ -106,12 +128,21 @@ fun SignalsHomeScreen(
     onOpenSettings: () -> Unit = {},
     onOpenTradeJournal: () -> Unit = {},
     onOpenArticles: () -> Unit = {},
+    onAddTradeLog: ((com.example.data.local.TradeLogEntity) -> Unit)? = null,
+    onToggleFavorite: ((SignalEntity) -> Unit)? = null,
     onSubmitFeedback: ((feedbackType: String, asset: String?, signalId: Long?, reasonCategory: String?, description: String, rating: Int, contactInfo: String?) -> Unit)? = null
 ) {
     var selectedCategory by remember { mutableStateOf("ALL") }
     var selectedFilter by remember { mutableStateOf("ALL") }
+    var minConfidenceFilter by remember { mutableIntStateOf(0) }
+    var searchQuery by remember { mutableStateOf("") }
     var showFeedbackDialog by remember { mutableStateOf(false) }
     var targetFeedbackSignal by remember { mutableStateOf<SignalEntity?>(null) }
+    var selectedSignalForSheet by remember { mutableStateOf<SignalEntity?>(null) }
+    var quickJournalSignal by remember { mutableStateOf<SignalEntity?>(null) }
+    var showRiskCalculatorModal by remember { mutableStateOf(false) }
+    val signalSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+    val riskCalculatorSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val context = LocalContext.current
 
     val categories = listOf(
@@ -125,12 +156,18 @@ fun SignalsHomeScreen(
     val filteredSignals = signals.filter { signal ->
         val catMatch = if (selectedCategory == "ALL") true else signal.category == selectedCategory
         val filterMatch = when (selectedFilter) {
+            "FAVORITES" -> signal.isFavorite
             "ACTIVE" -> signal.status == "ACTIVE"
             "NO_TRADE" -> signal.direction == "NO_TRADE"
             "WON" -> signal.status == "WON"
             else -> true
         }
-        catMatch && filterMatch
+        val confMatch = signal.confidenceScore >= minConfidenceFilter
+        val searchMatch = searchQuery.isBlank() ||
+                signal.asset.contains(searchQuery, ignoreCase = true) ||
+                signal.category.contains(searchQuery, ignoreCase = true)
+
+        catMatch && filterMatch && confMatch && searchMatch
     }
 
     LazyColumn(
@@ -364,307 +401,248 @@ fun SignalsHomeScreen(
             )
         }
 
+        // 2. Featured AI Trading Visual Hero Card
+        item {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 2.dp)
+                    .clip(RoundedCornerShape(22.dp))
+                    .border(
+                        1.2.dp,
+                        Brush.horizontalGradient(
+                            listOf(
+                                EmeraldNeon.copy(alpha = 0.8f),
+                                CyanNeon.copy(alpha = 0.8f),
+                                AmberGold.copy(alpha = 0.6f)
+                            )
+                        ),
+                        RoundedCornerShape(22.dp)
+                    )
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(170.dp)
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.hero_trading_banner),
+                        contentDescription = "Iran Binary Option AI Terminal Banner",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+
+                    // Dark gradient overlay for text readability
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(
+                                        SlateDark950.copy(alpha = 0.45f),
+                                        SlateDark950.copy(alpha = 0.92f)
+                                    )
+                                )
+                            )
+                    )
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(14.dp),
+                        verticalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        // AI Live Status Badge
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(SlateDark900.copy(alpha = 0.85f))
+                                    .border(1.dp, EmeraldNeon, RoundedCornerShape(20.dp))
+                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                            .clip(CircleShape)
+                                            .background(EmeraldNeon)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "موتور پردازش هوش مصنوعی آنلاین",
+                                        color = EmeraldGlow,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(AmberGold.copy(alpha = 0.25f))
+                                    .border(0.8.dp, AmberGold, RoundedCornerShape(12.dp))
+                                    .clickable(onClick = onOpenSubscriptions)
+                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = "ارتقاء اشتراک ⭐️",
+                                    color = AmberGold,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Black
+                                )
+                            }
+                        }
+
+                        // Hero Slogan & Call-to-action
+                        Column {
+                            Text(
+                                text = "ایران باینری آپشن • AI Trading Signals",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 17.sp
+                                ),
+                                color = TextPrimary
+                            )
+                            Text(
+                                text = "اولین پلتفرم تخصصی سیگنال‌دهی نوسان‌گیری باینری آپشن در ایران",
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                color = TextSecondary,
+                                modifier = Modifier.padding(top = 2.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         // 3. 15+ Binary Option Brokers Timeline Marquee Ribbon
         item {
             BrokerTimelineMarquee(
                 brokers = brokers,
-                modifier = Modifier.padding(vertical = 4.dp)
+                modifier = Modifier.padding(vertical = 2.dp)
             )
         }
 
-        // 3.5. Onboarding Tutorial Swipe-Through Banner
+        // 3.5. Quick Action Shortcuts Row (4 Primary Trading Utilities)
         item {
-            Card(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 6.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .clickable { onOpenTutorial() },
-                colors = CardDefaults.cardColors(containerColor = SlateDark900),
-                border = androidx.compose.foundation.BorderStroke(1.dp, CyanGlow.copy(alpha = 0.5f))
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row(
+                // Action 1: Risk Calculator
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        .weight(1f)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(SlateDark900)
+                        .border(1.dp, AmberGold.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
+                        .clickable { showRiskCalculatorModal = true }
+                        .padding(10.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Row(
-                        modifier = Modifier.weight(1f),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Box(
                             modifier = Modifier
-                                .size(40.dp)
+                                .size(34.dp)
                                 .clip(CircleShape)
-                                .background(CyanGlow.copy(alpha = 0.15f))
-                                .border(1.dp, CyanNeon, CircleShape),
+                                .background(AmberGold.copy(alpha = 0.15f)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.School,
-                                contentDescription = null,
-                                tint = CyanNeon,
-                                modifier = Modifier.size(20.dp)
-                            )
+                            Icon(Icons.Default.Calculate, contentDescription = null, tint = AmberGold, modifier = Modifier.size(18.dp))
                         }
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = "آموزش تصویری خواندن و اجرای سیگنال‌ها",
-                                    color = TextPrimary,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 11.5.sp
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(EmeraldDark)
-                                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                                ) {
-                                    Text("راهنمای ۴ گام", color = EmeraldNeon, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                                }
-                            }
-                            Text(
-                                text = "آشنایی با انقضا، ثانیه ورود (۰۰s)، فیلتر وتو و بروکرهای باینری",
-                                color = TextMuted,
-                                fontSize = 10.sp
-                            )
-                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text("محاسبه ریسک", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                        Text("مدیریت سرمایه", color = TextMuted, fontSize = 9.sp)
                     }
-
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = "مشاهده آموزش",
-                        tint = CyanNeon,
-                        modifier = Modifier.size(18.dp)
-                    )
                 }
-            }
-        }
 
-        // 3.6. Room Database Signal History Access Banner
-        item {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .clickable { onOpenHistory() },
-                colors = CardDefaults.cardColors(containerColor = SlateDark900),
-                border = androidx.compose.foundation.BorderStroke(1.dp, EmeraldNeon.copy(alpha = 0.45f))
-            ) {
-                Row(
+                // Action 2: Trade Journal
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        .weight(1f)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(SlateDark900)
+                        .border(1.dp, EmeraldNeon.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
+                        .clickable { onOpenTradeJournal() }
+                        .padding(10.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Row(
-                        modifier = Modifier.weight(1f),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Box(
                             modifier = Modifier
-                                .size(40.dp)
+                                .size(34.dp)
                                 .clip(CircleShape)
-                                .background(EmeraldDark.copy(alpha = 0.6f))
-                                .border(1.dp, EmeraldNeon, CircleShape),
+                                .background(EmeraldNeon.copy(alpha = 0.15f)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Storage,
-                                contentDescription = null,
-                                tint = EmeraldNeon,
-                                modifier = Modifier.size(20.dp)
-                            )
+                            Icon(Icons.Default.Assessment, contentDescription = null, tint = EmeraldNeon, modifier = Modifier.size(18.dp))
                         }
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = "آرشیو و تاریخچه سیگنال‌ها در Room Database",
-                                    color = TextPrimary,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 11.5.sp
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(EmeraldDark)
-                                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                                ) {
-                                    Text("ذخیره آفلاین", color = EmeraldNeon, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                                }
-                            }
-                            Text(
-                                text = "مشاهده نتایج گذشته (برد / باخت / وتو)، وین‌ریت واقعی و استرایک‌ها",
-                                color = TextMuted,
-                                fontSize = 10.sp
-                            )
-                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text("ژورنال ترید", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                        Text("ثبت و آنالیز", color = TextMuted, fontSize = 9.sp)
                     }
-
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = "ورود به تاریخچه",
-                        tint = EmeraldNeon,
-                        modifier = Modifier.size(18.dp)
-                    )
                 }
-            }
-        }
 
-        // 3.7. Trade Journal & Performance Tracker Banner
-        item {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .clickable { onOpenTradeJournal() },
-                colors = CardDefaults.cardColors(containerColor = SlateDark900),
-                border = androidx.compose.foundation.BorderStroke(1.dp, AmberGold.copy(alpha = 0.5f))
-            ) {
-                Row(
+                // Action 3: Signal History
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        .weight(1f)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(SlateDark900)
+                        .border(1.dp, CyanNeon.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
+                        .clickable { onOpenHistory() }
+                        .padding(10.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Row(
-                        modifier = Modifier.weight(1f),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Box(
                             modifier = Modifier
-                                .size(40.dp)
+                                .size(34.dp)
                                 .clip(CircleShape)
-                                .background(AmberGold.copy(alpha = 0.15f))
-                                .border(1.dp, AmberGold, CircleShape),
+                                .background(CyanNeon.copy(alpha = 0.15f)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Assessment,
-                                contentDescription = null,
-                                tint = AmberGold,
-                                modifier = Modifier.size(20.dp)
-                            )
+                            Icon(Icons.Default.Storage, contentDescription = null, tint = CyanNeon, modifier = Modifier.size(18.dp))
                         }
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = "دفترچه و ژورنال معاملات شخصی (Trade Journal)",
-                                    color = TextPrimary,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 11.5.sp
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(AmberGold.copy(alpha = 0.2f))
-                                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                                ) {
-                                    Text("جدید ⭐️", color = AmberGold, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                                }
-                            }
-                            Text(
-                                text = "ثبت دستی تریدها، الصاق اسکرین‌شات چارت، تحلیل وین‌ریت و سودآوری",
-                                color = TextMuted,
-                                fontSize = 10.sp
-                            )
-                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text("تاریخچه Room", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                        Text("آرشیو آفلاین", color = TextMuted, fontSize = 9.sp)
                     }
-
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = "ورود به ژورنال",
-                        tint = AmberGold,
-                        modifier = Modifier.size(18.dp)
-                    )
                 }
-            }
-        }
 
-        // 3.5. 3 Sections Educational Encyclopedia Banner (6, 36, 67 sections)
-        item {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .clickable { onOpenArticles() }
-                    .testTag("open_encyclopedia_banner_card"),
-                colors = CardDefaults.cardColors(containerColor = SlateDark900),
-                border = androidx.compose.foundation.BorderStroke(1.dp, CyanGlow.copy(alpha = 0.5f))
-            ) {
-                Row(
+                // Action 4: Encyclopedia
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        .weight(1f)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(SlateDark900)
+                        .border(1.dp, CyanGlow.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
+                        .clickable { onOpenArticles() }
+                        .padding(10.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Row(
-                        modifier = Modifier.weight(1f),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Box(
                             modifier = Modifier
-                                .size(40.dp)
+                                .size(34.dp)
                                 .clip(CircleShape)
-                                .background(CyanGlow.copy(alpha = 0.15f))
-                                .border(1.dp, CyanGlow, CircleShape),
+                                .background(CyanGlow.copy(alpha = 0.15f)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Book,
-                                contentDescription = null,
-                                tint = CyanGlow,
-                                modifier = Modifier.size(20.dp)
-                            )
+                            Icon(Icons.Default.Book, contentDescription = null, tint = CyanGlow, modifier = Modifier.size(18.dp))
                         }
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = "دانشنامه جامع ۳ گانه (۱۰۹ سرفصل مرجع)",
-                                    color = TextPrimary,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 11.5.sp
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(CyanGlow.copy(alpha = 0.2f))
-                                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                                ) {
-                                    Text("۳ بخش کامل", color = CyanNeon, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                                }
-                            }
-                            Text(
-                                text = "۶ قانون طلایی بقا • ۳۶ الگوی کندل‌استیک • ۶۷ اصطلاح تخصصی و فرمول",
-                                color = TextMuted,
-                                fontSize = 10.sp
-                            )
-                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text("دانشنامه", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                        Text("۱۰۹ سرفصل", color = TextMuted, fontSize = 9.sp)
                     }
-
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = "ورود به دانشنامه",
-                        tint = CyanGlow,
-                        modifier = Modifier.size(18.dp)
-                    )
                 }
             }
         }
@@ -821,83 +799,20 @@ fun SignalsHomeScreen(
             }
         }
 
-        // 5. Market Categories Selector
+        // 5. Advanced Signal Multi-Filter Bar (Asset Class, Win Probability %, Status, Search)
         item {
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                items(categories) { (code, label) ->
-                    val isSelected = selectedCategory == code
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(if (isSelected) EmeraldDark else SlateDark900)
-                            .border(
-                                1.dp,
-                                if (isSelected) EmeraldNeon else CardBorder,
-                                RoundedCornerShape(12.dp)
-                            )
-                            .clickable { selectedCategory = code }
-                            .padding(horizontal = 14.dp, vertical = 7.dp)
-                    ) {
-                        Text(
-                            text = label,
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                fontSize = 11.5.sp
-                            ),
-                            color = if (isSelected) EmeraldGlow else TextSecondary
-                        )
-                    }
-                }
-            }
-        }
-
-        // 6. Signal Filter Chips (All, Active, No-Trade, Won)
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "فیلتر وضعیت:",
-                    color = TextMuted,
-                    fontSize = 11.sp
-                )
-
-                listOf(
-                    "ALL" to "همه",
-                    "ACTIVE" to "در حال اجرا",
-                    "NO_TRADE" to "فیلتر No Trade",
-                    "WON" to "موفق"
-                ).forEach { (code, label) ->
-                    val isSelected = selectedFilter == code
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(if (isSelected) SlateDark800 else Color.Transparent)
-                            .border(
-                                0.8.dp,
-                                if (isSelected) CyanNeon else CardBorder,
-                                RoundedCornerShape(8.dp)
-                            )
-                            .clickable { selectedFilter = code }
-                            .padding(horizontal = 10.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = label,
-                            color = if (isSelected) CyanGlow else TextSecondary,
-                            fontSize = 10.5.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                        )
-                    }
-                }
-            }
+            SignalFilterBar(
+                selectedCategory = selectedCategory,
+                onCategorySelected = { selectedCategory = it },
+                minConfidence = minConfidenceFilter,
+                onMinConfidenceSelected = { minConfidenceFilter = it },
+                selectedFilter = selectedFilter,
+                onFilterSelected = { selectedFilter = it },
+                searchQuery = searchQuery,
+                onSearchQueryChanged = { searchQuery = it },
+                totalResultsCount = filteredSignals.size,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
         }
 
         // 7. Signals List Header
@@ -937,13 +852,21 @@ fun SignalsHomeScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.FilterList, contentDescription = null, tint = TextMuted, modifier = Modifier.size(36.dp))
+                        Icon(
+                            imageVector = if (selectedFilter == "FAVORITES") Icons.Default.Bookmark else Icons.Default.FilterList,
+                            contentDescription = null,
+                            tint = if (selectedFilter == "FAVORITES") AmberGold else TextMuted,
+                            modifier = Modifier.size(36.dp)
+                        )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "سیگنالی در این فیلتر یافت نشد",
+                            text = if (selectedFilter == "FAVORITES")
+                                "هیچ سیگنالی نشان نشده است. برای ذخیره سیگنال‌های با احتمال بالا جهت بررسی سریع بعدی، آیکون نشان کردن 🔖 روی کارت‌ها را لمس کنید."
+                            else "سیگنالی در این فیلتر یافت نشد",
                             color = TextSecondary,
                             fontWeight = FontWeight.SemiBold,
-                            fontSize = 13.sp
+                            fontSize = 13.sp,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
                     }
                 }
@@ -953,13 +876,55 @@ fun SignalsHomeScreen(
                 SignalCard(
                     signal = signal,
                     modifier = Modifier.padding(horizontal = 16.dp),
+                    onClick = { sig ->
+                        selectedSignalForSheet = sig
+                    },
                     onReportClick = { sig ->
                         targetFeedbackSignal = sig
                         showFeedbackDialog = true
-                    }
+                    },
+                    onToggleFavorite = onToggleFavorite
                 )
             }
         }
+    }
+
+    if (selectedSignalForSheet != null) {
+        SignalDetailBottomSheet(
+            signal = selectedSignalForSheet,
+            sheetState = signalSheetState,
+            onDismiss = {
+                selectedSignalForSheet = null
+            },
+            onLogToJournal = { sig ->
+                selectedSignalForSheet = null
+                quickJournalSignal = sig
+            },
+            onReportFeedback = { sig ->
+                selectedSignalForSheet = null
+                targetFeedbackSignal = sig
+                showFeedbackDialog = true
+            }
+        )
+    }
+
+    if (quickJournalSignal != null) {
+        QuickJournalLogDialog(
+            signal = quickJournalSignal!!,
+            onDismiss = { quickJournalSignal = null },
+            onConfirmLog = { tradeLog ->
+                onAddTradeLog?.invoke(tradeLog)
+                quickJournalSignal = null
+                Toast.makeText(context, "معامله با موفقیت در ژورنال ذخیره شد.", Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+
+    if (showRiskCalculatorModal) {
+        SmartRiskCalculatorModal(
+            sheetState = riskCalculatorSheetState,
+            onDismiss = { showRiskCalculatorModal = false }
+        )
     }
 
     if (showFeedbackDialog) {
@@ -979,3 +944,5 @@ fun SignalsHomeScreen(
         )
     }
 }
+
+

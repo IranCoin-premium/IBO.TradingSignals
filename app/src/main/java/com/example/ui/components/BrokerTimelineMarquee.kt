@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -74,14 +75,28 @@ fun BrokerTimelineMarquee(
     modifier: Modifier = Modifier
 ) {
     var selectedBroker by remember { mutableStateOf<BrokerItem?>(null) }
+    var searchQuery by remember { mutableStateOf("") }
+    var isSearchExpanded by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
 
+    val filteredBrokers = remember(brokers, searchQuery) {
+        if (searchQuery.isBlank()) brokers
+        else brokers.filter {
+            it.name.contains(searchQuery, ignoreCase = true) ||
+                    it.faName.contains(searchQuery, ignoreCase = true) ||
+                    it.badge.contains(searchQuery, ignoreCase = true) ||
+                    it.description.contains(searchQuery, ignoreCase = true)
+        }
+    }
+
     // Smooth auto-scroll hint effect
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(4000)
-            val nextIndex = (listState.firstVisibleItemIndex + 1) % brokers.size
-            listState.animateScrollToItem(nextIndex)
+    LaunchedEffect(filteredBrokers) {
+        if (filteredBrokers.isNotEmpty()) {
+            while (true) {
+                delay(4000)
+                val nextIndex = (listState.firstVisibleItemIndex + 1) % filteredBrokers.size
+                listState.animateScrollToItem(nextIndex)
+            }
         }
     }
 
@@ -102,7 +117,7 @@ fun BrokerTimelineMarquee(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "نوار تایم‌لاین بروکرها و اکسچنج‌های باینری آپشن (${brokers.size} بروکر)",
+                    text = "نوار تایم‌لاین بروکرها و صرافی‌های باینری (${filteredBrokers.size} بروکر)",
                     style = MaterialTheme.typography.labelLarge.copy(
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.5.sp
@@ -111,21 +126,63 @@ fun BrokerTimelineMarquee(
                 )
             }
 
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(EmeraldDark.copy(alpha = 0.5f))
-                    .padding(horizontal = 8.dp, vertical = 2.dp)
-            ) {
-                Text(
-                    text = "لایوموشن متصل",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 10.sp
-                    ),
-                    color = EmeraldGlow
-                )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(SlateDark800)
+                        .clickable { isSearchExpanded = !isSearchExpanded }
+                        .padding(6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "جستجوی صرافی/بروکر",
+                        tint = CyanGlow,
+                        modifier = Modifier.size(15.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(6.dp))
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(EmeraldDark.copy(alpha = 0.5f))
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = "لایوموشن متصل",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 10.sp
+                        ),
+                        color = EmeraldGlow
+                    )
+                }
             }
+        }
+
+        AnimatedVisibility(visible = isSearchExpanded) {
+            androidx.compose.material3.OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = {
+                    Text("جستجوی صرافی یا بروکر (Pocket, Quotex, Deriv, ...)", fontSize = 11.sp, color = TextSecondary)
+                },
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                shape = RoundedCornerShape(10.dp),
+                colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = SlateDark900,
+                    unfocusedContainerColor = SlateDark900,
+                    focusedBorderColor = CyanNeon,
+                    unfocusedBorderColor = CardBorder,
+                    focusedTextColor = TextPrimary,
+                    unfocusedTextColor = TextPrimary
+                )
+            )
         }
 
         LazyRow(
@@ -134,7 +191,7 @@ fun BrokerTimelineMarquee(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            items(brokers, key = { it.id }) { broker ->
+            items(filteredBrokers, key = { it.id }) { broker ->
                 BrokerChipItem(
                     broker = broker,
                     onClick = { selectedBroker = broker }
@@ -244,9 +301,24 @@ fun BrokerChipItem(
     broker: BrokerItem,
     onClick: () -> Unit
 ) {
+    val (brandBg, brandAccent, brandText) = when {
+        broker.name.contains("Pocket", ignoreCase = true) -> Triple(Color(0xFF1E3A8A), Color(0xFFF59E0B), "PO")
+        broker.name.contains("Quotex", ignoreCase = true) -> Triple(Color(0xFF991B1B), Color(0xFFFFFFFF), "QX")
+        broker.name.contains("IQ", ignoreCase = true) -> Triple(Color(0xFF9A3412), Color(0xFFFDE047), "IQ")
+        broker.name.contains("Olymp", ignoreCase = true) -> Triple(Color(0xFF115E59), Color(0xFF22D3EE), "OT")
+        broker.name.contains("Deriv", ignoreCase = true) -> Triple(Color(0xFF7F1D1D), Color(0xFFF87171), "DV")
+        broker.name.contains("Expert", ignoreCase = true) -> Triple(Color(0xFF581C87), Color(0xFFFBBF24), "EX")
+        broker.name.contains("Binomo", ignoreCase = true) -> Triple(Color(0xFF78350F), Color(0xFFFEF08A), "BM")
+        broker.name.contains("Spectre", ignoreCase = true) -> Triple(Color(0xFF312E81), Color(0xFF38BDF8), "SP")
+        broker.name.contains("Intrade", ignoreCase = true) -> Triple(Color(0xFF064E3B), Color(0xFF6EE7B7), "IB")
+        broker.name.contains("Close", ignoreCase = true) -> Triple(Color(0xFF075985), Color(0xFF7DD3FC), "CO")
+        broker.name.contains("Finmax", ignoreCase = true) -> Triple(Color(0xFF881337), Color(0xFFFDA4AF), "FM")
+        else -> Triple(EmeraldDark, EmeraldGlow, broker.name.take(2).uppercase())
+    }
+
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(16.dp))
             .background(
                 Brush.horizontalGradient(
                     listOf(
@@ -255,27 +327,35 @@ fun BrokerChipItem(
                     )
                 )
             )
-            .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
+            .border(
+                1.2.dp,
+                Brush.horizontalGradient(listOf(brandBg, CardBorder)),
+                RoundedCornerShape(16.dp)
+            )
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .padding(horizontal = 12.dp, vertical = 9.dp)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
+            // Stylized Monogram Brand Logo Avatar
             Box(
                 modifier = Modifier
-                    .size(30.dp)
+                    .size(34.dp)
                     .clip(CircleShape)
-                    .background(EmeraldDark)
-                    .border(0.8.dp, EmeraldNeon.copy(alpha = 0.6f), CircleShape),
+                    .background(brandBg)
+                    .border(1.dp, brandAccent.copy(alpha = 0.8f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.Bolt,
-                    contentDescription = null,
-                    tint = EmeraldGlow,
-                    modifier = Modifier.size(16.dp)
+                Text(
+                    text = brandText,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.Black,
+                        fontSize = 11.5.sp,
+                        letterSpacing = 0.5.sp
+                    ),
+                    color = brandAccent
                 )
             }
 
@@ -284,27 +364,35 @@ fun BrokerChipItem(
                     Text(
                         text = broker.name,
                         style = MaterialTheme.typography.labelMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp
+                            fontWeight = FontWeight.Black,
+                            fontSize = 12.5.sp
                         ),
                         color = TextPrimary
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = broker.payoutRate,
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 11.sp
-                        ),
-                        color = EmeraldNeon
-                    )
+                    Spacer(modifier = Modifier.width(5.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(EmeraldDark.copy(alpha = 0.6f))
+                            .padding(horizontal = 5.dp, vertical = 1.dp)
+                    ) {
+                        Text(
+                            text = broker.payoutRate,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Black,
+                                fontSize = 10.5.sp
+                            ),
+                            color = EmeraldGlow
+                        )
+                    }
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = broker.faName,
                         style = MaterialTheme.typography.bodySmall.copy(
-                            fontSize = 10.sp
+                            fontSize = 10.5.sp,
+                            fontWeight = FontWeight.Medium
                         ),
                         color = TextSecondary
                     )
@@ -313,11 +401,12 @@ fun BrokerChipItem(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(4.dp))
-                                .background(CyanNeon.copy(alpha = 0.2f))
+                                .background(CyanNeon.copy(alpha = 0.25f))
+                                .border(0.5.dp, CyanNeon.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
                                 .padding(horizontal = 4.dp, vertical = 1.dp)
                         ) {
                             Text(
-                                text = "OTC",
+                                text = "⚡ 24/7 OTC",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 8.5.sp

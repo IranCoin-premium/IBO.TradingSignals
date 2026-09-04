@@ -40,6 +40,12 @@ class TradingRepository(
     val allSignals: Flow<List<SignalEntity>> = db.signalDao().getAllSignals()
     val historicalSignals: Flow<List<SignalEntity>> = db.signalDao().getHistoricalSignals()
     val activeSignals: Flow<List<SignalEntity>> = db.signalDao().getActiveSignals()
+    val favoriteSignals: Flow<List<SignalEntity>> = db.signalDao().getFavoriteSignals()
+
+    suspend fun toggleFavoriteSignal(signal: SignalEntity) {
+        val newStatus = !signal.isFavorite
+        db.signalDao().updateFavoriteStatus(signal.id, newStatus)
+    }
     val wonCount: Flow<Int> = db.signalDao().getWonCountFlow()
     val lostCount: Flow<Int> = db.signalDao().getLostCountFlow()
     val vetoCount: Flow<Int> = db.signalDao().getVetoCountFlow()

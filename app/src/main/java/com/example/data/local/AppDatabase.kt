@@ -15,7 +15,7 @@ import androidx.room.RoomDatabase
         FeedbackEntity::class,
         TradeLogEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

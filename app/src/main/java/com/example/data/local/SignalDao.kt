@@ -24,6 +24,12 @@ interface SignalDao {
     @Query("SELECT * FROM signals WHERE status = 'ACTIVE' ORDER BY timestamp DESC")
     fun getActiveSignals(): Flow<List<SignalEntity>>
 
+    @Query("SELECT * FROM signals WHERE isFavorite = 1 ORDER BY timestamp DESC")
+    fun getFavoriteSignals(): Flow<List<SignalEntity>>
+
+    @Query("UPDATE signals SET isFavorite = :isFavorite WHERE id = :id")
+    suspend fun updateFavoriteStatus(id: Long, isFavorite: Boolean)
+
     @Query("SELECT COUNT(*) FROM signals WHERE status = 'WON'")
     fun getWonCountFlow(): Flow<Int>
 
