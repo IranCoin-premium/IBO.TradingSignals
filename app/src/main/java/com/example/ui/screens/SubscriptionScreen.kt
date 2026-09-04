@@ -22,9 +22,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.CurrencyBitcoin
 import androidx.compose.material.icons.filled.Diamond
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Payment
 import androidx.compose.material.icons.filled.Shield
@@ -35,9 +37,13 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -49,6 +55,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -78,11 +86,19 @@ fun SubscriptionScreen(
     currentUserPlan: String,
     subscriptions: List<UserSubscriptionEntity> = emptyList(),
     offlineCacheStatus: OfflineCacheSyncStatus? = null,
-    onBuyPlan: (PlanEntity) -> Unit
+    onBuyPlan: (PlanEntity, String, String, (Boolean, String) -> Unit) -> Unit
 ) {
     var selectedPlanToBuy by remember { mutableStateOf<PlanEntity?>(null) }
-    var showSuccessDialog by remember { mutableStateOf<String?>(null) }
     var selectedPaymentMethod by remember { mutableStateOf("TETHER") } // TETHER, SHETAB, ZARINPAL
+    
+    // Multi-step Checkout state
+    var checkoutStep by remember { mutableStateOf("SELECTION") } // SELECTION, PRE_FACTOR, VERIFYING, SUCCESS
+    var transactionRefInput by remember { mutableStateOf("") }
+    var loadingMessage by remember { mutableStateOf("") }
+    var serverResponseMessage by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    val clipboardManager = LocalClipboardManager.current
 
     LazyColumn(
         modifier = Modifier
@@ -362,7 +378,12 @@ fun SubscriptionScreen(
 
                     // Buy button
                     Button(
-                        onClick = { selectedPlanToBuy = plan },
+                        onClick = {
+                            selectedPlanToBuy = plan
+                            checkoutStep = "SELECTION"
+                            errorMessage = null
+                            transactionRefInput = ""
+                        },
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (plan.isPopular) EmeraldNeon else SlateDark800
@@ -389,140 +410,314 @@ fun SubscriptionScreen(
     if (selectedPlanToBuy != null) {
         val plan = selectedPlanToBuy!!
         AlertDialog(
-            onDismissRequest = { selectedPlanToBuy = null },
+            onDismissRequest = { 
+                if (checkoutStep != "VERIFYING") {
+                    selectedPlanToBuy = null 
+                }
+            },
             confirmButton = {
-                Button(
-                    onClick = {
-                        onBuyPlan(plan)
-                        showSuccessDialog = "اشتراک ${plan.title} به مدت ${plan.durationText} با موفقیت فعال شد!"
-                        selectedPlanToBuy = null
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = EmeraldNeon),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("تایید پرداخت و فعال‌سازی آنی", color = Color.Black, fontWeight = FontWeight.Black)
+                if (checkoutStep == "SELECTION") {
+                    Button(
+                        onClick = {
+                            checkoutStep = "PRE_FACTOR"
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = EmeraldNeon),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("تایید روش پرداخت و دریافت فاکتور فنی", color = Color.Black, fontWeight = FontWeight.Black)
+                    }
+                } else if (checkoutStep == "PRE_FACTOR") {
+                    Button(
+                        onClick = {
+                            if (transactionRefInput.trim().isEmpty()) {
+                                errorMessage = "لطفاً کد پیگیری تراکنش خود را وارد نمایید."
+                                return@Button
+                            }
+                            
+                            checkoutStep = "VERIFYING"
+                            errorMessage = null
+                            loadingMessage = "در حال ارسال و استعلام اصالت فیش واریزی از درگاه سرور..."
+                            
+                            onBuyPlan(plan, selectedPaymentMethod, transactionRefInput) { success, msg ->
+                                if (success) {
+                                    serverResponseMessage = msg
+                                    checkoutStep = "SUCCESS"
+                                } else {
+                                    errorMessage = msg
+                                    checkoutStep = "PRE_FACTOR"
+                                }
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = EmeraldNeon),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("ثبت و درخواست تایید فنی تراکنش", color = Color.Black, fontWeight = FontWeight.Black)
+                    }
                 }
             },
             dismissButton = {
-                OutlinedButton(
-                    onClick = { selectedPlanToBuy = null },
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("انصراف", color = TextSecondary)
+                if (checkoutStep != "VERIFYING" && checkoutStep != "SUCCESS") {
+                    OutlinedButton(
+                        onClick = { 
+                            if (checkoutStep == "PRE_FACTOR") {
+                                checkoutStep = "SELECTION"
+                            } else {
+                                selectedPlanToBuy = null 
+                            }
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(if (checkoutStep == "PRE_FACTOR") "بازگشت" else "انصراف", color = TextSecondary)
+                    }
                 }
             },
             title = {
                 Text(
-                    text = "پیش‌فاکتور خرید ${plan.title}",
+                    text = when (checkoutStep) {
+                        "SELECTION" -> "انتخاب روش پرداخت ${plan.title}"
+                        "PRE_FACTOR" -> "فاکتور فنی پرداخت و دستورالعمل واریز"
+                        "VERIFYING" -> "در حال تایید تراکنش در سرور"
+                        "SUCCESS" -> "پرداخت تایید و فعال شد"
+                        else -> "پیش‌فاکتور خرید"
+                    },
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = TextPrimary
                 )
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        text = "مبلغ قابل پرداخت: ${plan.priceToman} معادل ${plan.priceUsdt}",
-                        color = AmberGold,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp
-                    )
+                    if (checkoutStep == "SELECTION") {
+                        Text(
+                            text = "مبلغ قابل پرداخت: ${plan.priceToman} معادل ${plan.priceUsdt}",
+                            color = AmberGold,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
 
-                    Text("روش پرداخت مورد نظر را انتخاب کنید:", color = TextSecondary, fontSize = 12.sp)
+                        Text("روش پرداخت مورد نظر خود را انتخاب کنید:", color = TextSecondary, fontSize = 12.sp)
 
-                    // Method 1: Tether USDT
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(if (selectedPaymentMethod == "TETHER") EmeraldDark else SlateDark900)
-                            .border(1.dp, if (selectedPaymentMethod == "TETHER") EmeraldNeon else CardBorder, RoundedCornerShape(10.dp))
-                            .clickable { selectedPaymentMethod = "TETHER" }
-                            .padding(10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.CurrencyBitcoin, contentDescription = null, tint = EmeraldNeon, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Column {
-                            Text("درگاه تتر کریپتو (USDT TRC20 / BEP20)", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                            Text("واریز خودکار و بدون کارمزد بانکی", color = TextSecondary, fontSize = 10.sp)
+                        // Method 1: Tether USDT
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (selectedPaymentMethod == "TETHER") EmeraldDark else SlateDark900)
+                                .border(1.dp, if (selectedPaymentMethod == "TETHER") EmeraldNeon else CardBorder, RoundedCornerShape(10.dp))
+                                .clickable { selectedPaymentMethod = "TETHER" }
+                                .padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.CurrencyBitcoin, contentDescription = null, tint = EmeraldNeon, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text("درگاه تتر کریپتو (USDT TRC20 / BEP20)", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                Text("واریز خودکار سرور بدون کارمزد بانکی", color = TextSecondary, fontSize = 10.sp)
+                            }
+                        }
+
+                        // Method 2: Shetab Card to Card
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (selectedPaymentMethod == "SHETAB") EmeraldDark else SlateDark900)
+                                .border(1.dp, if (selectedPaymentMethod == "SHETAB") EmeraldNeon else CardBorder, RoundedCornerShape(10.dp))
+                                .clickable { selectedPaymentMethod = "SHETAB" }
+                                .padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.CreditCard, contentDescription = null, tint = AmberGold, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text("کارت به کارت شتابی با رسید فیش بانکی", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                Text("اتصال به شبکه شتاب و پایا", color = TextSecondary, fontSize = 10.sp)
+                            }
+                        }
+
+                        // Method 3: ZarinPal
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (selectedPaymentMethod == "ZARINPAL") EmeraldDark else SlateDark900)
+                                .border(1.dp, if (selectedPaymentMethod == "ZARINPAL") EmeraldNeon else CardBorder, RoundedCornerShape(10.dp))
+                                .clickable { selectedPaymentMethod = "ZARINPAL" }
+                                .padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Payment, contentDescription = null, tint = CyanNeon, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text("درگاه پرداخت مستقیم اینترنتی", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                Text("امن‌ترین حالت با رمز دوم پویا", color = TextSecondary, fontSize = 10.sp)
+                            }
                         }
                     }
 
-                    // Method 2: Shetab Card to Card
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(if (selectedPaymentMethod == "SHETAB") EmeraldDark else SlateDark900)
-                            .border(1.dp, if (selectedPaymentMethod == "SHETAB") EmeraldNeon else CardBorder, RoundedCornerShape(10.dp))
-                            .clickable { selectedPaymentMethod = "SHETAB" }
-                            .padding(10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.CreditCard, contentDescription = null, tint = AmberGold, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Column {
-                            Text("کارت به کارت شتابی با رسید آنی", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                            Text("اتصال به سامانه شاپرک و پایا", color = TextSecondary, fontSize = 10.sp)
+                    if (checkoutStep == "PRE_FACTOR") {
+                        // Display specific instruction based on payment method
+                        when (selectedPaymentMethod) {
+                            "TETHER" -> {
+                                val address = "TYdge1S8p3v5X9M8gK1ZfB8rJ4yA7vD9eC"
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = SlateDark950),
+                                    modifier = Modifier.fillMaxWidth().border(1.dp, CardBorder, RoundedCornerShape(10.dp))
+                                ) {
+                                    Column(modifier = Modifier.padding(10.dp)) {
+                                        Text("آدرس کیف پول تتر شبکه TRC20 رسمی:", color = TextSecondary, fontSize = 11.sp)
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text(address, color = EmeraldGlow, fontWeight = FontWeight.Bold, fontSize = 11.sp, modifier = Modifier.weight(1f))
+                                            IconButton(onClick = { clipboardManager.setText(AnnotatedString(address)) }) {
+                                                Icon(Icons.Default.ContentCopy, contentDescription = "کپی آدرس تتر", tint = TextPrimary, modifier = Modifier.size(16.dp))
+                                            }
+                                        }
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text("مبلغ دقیق واریزی: ${plan.priceUsdt}", color = AmberGold, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    }
+                                }
+                            }
+                            "SHETAB" -> {
+                                val card = "6037-9911-2233-4455"
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = SlateDark950),
+                                    modifier = Modifier.fillMaxWidth().border(1.dp, CardBorder, RoundedCornerShape(10.dp))
+                                ) {
+                                    Column(modifier = Modifier.padding(10.dp)) {
+                                        Text("شماره کارت شتاب جهت واریز:", color = TextSecondary, fontSize = 11.sp)
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text(card, color = EmeraldGlow, fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                                            IconButton(onClick = { clipboardManager.setText(AnnotatedString(card)) }) {
+                                                Icon(Icons.Default.ContentCopy, contentDescription = "کپی شماره کارت", tint = TextPrimary, modifier = Modifier.size(16.dp))
+                                            }
+                                        }
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text("مبلغ دقیق به تومان: ${plan.priceToman}", color = AmberGold, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    }
+                                }
+                            }
+                            "ZARINPAL" -> {
+                                val link = "https://zarinp.al/iranbinaryoption"
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = SlateDark950),
+                                    modifier = Modifier.fillMaxWidth().border(1.dp, CardBorder, RoundedCornerShape(10.dp))
+                                ) {
+                                    Column(modifier = Modifier.padding(10.dp)) {
+                                        Text("لینک درگاه پرداخت الکترونیک زرین‌پال:", color = TextSecondary, fontSize = 11.sp)
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text(link, color = EmeraldGlow, fontWeight = FontWeight.Bold, fontSize = 11.sp, modifier = Modifier.weight(1f))
+                                            IconButton(onClick = { clipboardManager.setText(AnnotatedString(link)) }) {
+                                                Icon(Icons.Default.ContentCopy, contentDescription = "کپی لینک درگاه", tint = TextPrimary, modifier = Modifier.size(16.dp))
+                                            }
+                                        }
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text("مبلغ تراکنش آنلاین: ${plan.priceToman}", color = AmberGold, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = "هشدار امنیتی: واریزی شما تنها با تایید دستی یا خودکار تراکنش در سرور معتبر است. پس از واریز، کد پیگیری و شناسه تراکنش را برای بررسی اصالت و صدور لایسنس تایید نهایی در کادر زیر وارد کنید.",
+                            color = TextSecondary,
+                            fontSize = 11.sp,
+                            lineHeight = 18.sp
+                        )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        OutlinedTextField(
+                            value = transactionRefInput,
+                            onValueChange = { transactionRefInput = it },
+                            label = { Text("کد پیگیری تراکنش (مثلاً TX-102030)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = EmeraldNeon,
+                                unfocusedBorderColor = CardBorder,
+                                focusedLabelColor = EmeraldNeon,
+                                unfocusedLabelColor = TextMuted,
+                                focusedTextColor = TextPrimary,
+                                unfocusedTextColor = TextPrimary
+                            ),
+                            shape = RoundedCornerShape(10.dp)
+                        )
+
+                        errorMessage?.let { err ->
+                            Text(err, color = Color.Red, fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
                         }
                     }
 
-                    // Method 3: ZarinPal
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(if (selectedPaymentMethod == "ZARINPAL") EmeraldDark else SlateDark900)
-                            .border(1.dp, if (selectedPaymentMethod == "ZARINPAL") EmeraldNeon else CardBorder, RoundedCornerShape(10.dp))
-                            .clickable { selectedPaymentMethod = "ZARINPAL" }
-                            .padding(10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.Payment, contentDescription = null, tint = CyanNeon, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Column {
-                            Text("درگاه پرداخت مستقیم اینترنتی", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                            Text("اتصال امن رمز پویا", color = TextSecondary, fontSize = 10.sp)
+                    if (checkoutStep == "VERIFYING") {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            CircularProgressIndicator(color = EmeraldNeon, modifier = Modifier.size(44.dp))
+                            Spacer(modifier = Modifier.height(14.dp))
+                            Text(
+                                text = loadingMessage,
+                                color = TextPrimary,
+                                fontSize = 12.5.sp,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+
+                    if (checkoutStep == "SUCCESS") {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(CircleShape)
+                                    .background(EmeraldDark),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.Verified, contentDescription = null, tint = EmeraldNeon, modifier = Modifier.size(32.dp))
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = serverResponseMessage,
+                                color = EmeraldGlow,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.5.sp,
+                                textAlign = TextAlign.Center,
+                                lineHeight = 20.sp
+                            )
+                            Spacer(modifier = Modifier.height(14.dp))
+                            Button(
+                                onClick = { selectedPlanToBuy = null },
+                                colors = ButtonDefaults.buttonColors(containerColor = EmeraldNeon),
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Text("بستن و مشاهده سیگنال‌های لایو", color = Color.Black, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }
-            },
-            containerColor = CardSurface,
-            shape = RoundedCornerShape(20.dp)
-        )
-    }
-
-    // Success Purchase Dialog
-    if (showSuccessDialog != null) {
-        AlertDialog(
-            onDismissRequest = { showSuccessDialog = null },
-            confirmButton = {
-                Button(
-                    onClick = { showSuccessDialog = null },
-                    colors = ButtonDefaults.buttonColors(containerColor = EmeraldNeon),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text("مشاهده سیگنال‌های باز شده", color = Color.Black, fontWeight = FontWeight.Bold)
-                }
-            },
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Check, contentDescription = null, tint = EmeraldNeon)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("پرداخت موفق و تایید شد", color = TextPrimary, fontWeight = FontWeight.Bold)
-                }
-            },
-            text = {
-                Text(
-                    text = showSuccessDialog!!,
-                    color = TextSecondary,
-                    fontSize = 13.sp,
-                    lineHeight = 20.sp
-                )
             },
             containerColor = CardSurface,
             shape = RoundedCornerShape(20.dp)

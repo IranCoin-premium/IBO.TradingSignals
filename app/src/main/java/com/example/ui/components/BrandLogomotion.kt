@@ -26,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoGraph
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Stars
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -58,18 +59,65 @@ import com.example.ui.theme.SlateDark900
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 
+enum class BrandLogoStyle(
+    val title: String,
+    val description: String,
+    val primaryColor: Color,
+    val secondaryColor: Color,
+    val accentColor: Color,
+    val coreIcon: androidx.compose.ui.graphics.vector.ImageVector
+) {
+    CYBER_NEON(
+        "سایبر نئون ⚡",
+        "تم دیجیتالی مدرن با ترکیب رنگ‌های سبز نئون و آبی آسمانی تابان",
+        EmeraldNeon,
+        CyanNeon,
+        AmberGold,
+        Icons.Default.AutoGraph
+    ),
+    GOLD_LUXURY(
+        "طلایی لاکچری 👑",
+        "تم سلطنتی و باشکوه با ترکیب طلا و پلاتین درخشان",
+        AmberGold,
+        GoldGlow,
+        Color(0xFFFFD700),
+        Icons.Default.Shield
+    ),
+    ROYAL_SAPPHIRE(
+        "یاقوت سلطنتی 💎",
+        "تم حرفه‌ای تریدینگ مدرن با نورهای بنفش عمیق و آبی اقیانوسی",
+        CyanNeon,
+        Color(0xFF8A2BE2),
+        Color(0xFFE0B0FF),
+        Icons.Default.TrendingUp
+    ),
+    EMERALD_MINT(
+        "نعنایی زمرد 🍀",
+        "تم آرامش و رشد معامله‌گری با رنگ‌های نعنایی و سبز تیره جنگلی",
+        Color(0xFF00FFCC),
+        Color(0xFF1B4D3E),
+        Color(0xFFCCFF00),
+        Icons.Default.CheckCircle
+    )
+}
+
 @Composable
 fun BrandLogomotion(
     modifier: Modifier = Modifier,
     compact: Boolean = false,
-    showMotto: Boolean = true
+    showMotto: Boolean = true,
+    style: BrandLogoStyle = BrandLogoStyle.CYBER_NEON,
+    speedFactor: Float = 1.0f,
+    strokeWidthFactor: Float = 1.0f,
+    coreScaleFactor: Float = 1.0f,
+    glowIntensity: Float = 1.0f
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "logomotion")
     val rotation by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
-            animation = tween(12000, easing = LinearEasing),
+            animation = tween((12000 / speedFactor.coerceAtLeast(0.1f)).toInt(), easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "rotation"
@@ -86,8 +134,8 @@ fun BrandLogomotion(
     )
 
     val glowAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.4f,
-        targetValue = 0.9f,
+        initialValue = 0.4f * glowIntensity,
+        targetValue = 0.9f * glowIntensity,
         animationSpec = infiniteRepeatable(
             animation = tween(1500, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
@@ -111,9 +159,9 @@ fun BrandLogomotion(
                 1.dp,
                 Brush.horizontalGradient(
                     listOf(
-                        EmeraldNeon.copy(alpha = 0.4f),
-                        CyanNeon.copy(alpha = 0.6f),
-                        AmberGold.copy(alpha = 0.4f)
+                        style.primaryColor.copy(alpha = 0.4f * glowIntensity),
+                        style.secondaryColor.copy(alpha = 0.6f * glowIntensity),
+                        style.accentColor.copy(alpha = 0.4f * glowIntensity)
                     )
                 ),
                 RoundedCornerShape(20.dp)
@@ -133,14 +181,14 @@ fun BrandLogomotion(
                     .size(if (compact) 72.dp else 104.dp)
                     .rotate(rotation)
             ) {
-                val strokeWidth = 2.dp.toPx()
+                val strokeWidth = 2.dp.toPx() * strokeWidthFactor
                 drawCircle(
                     brush = Brush.sweepGradient(
                         listOf(
-                            EmeraldNeon.copy(alpha = glowAlpha),
-                            CyanNeon.copy(alpha = 0.1f),
-                            AmberGold.copy(alpha = glowAlpha),
-                            EmeraldNeon.copy(alpha = glowAlpha)
+                            style.primaryColor.copy(alpha = glowAlpha),
+                            style.secondaryColor.copy(alpha = 0.1f),
+                            style.accentColor.copy(alpha = glowAlpha),
+                            style.primaryColor.copy(alpha = glowAlpha)
                         )
                     ),
                     style = Stroke(width = strokeWidth)
@@ -148,13 +196,13 @@ fun BrandLogomotion(
 
                 // Dashed nodes
                 drawCircle(
-                    color = EmeraldNeon,
-                    radius = 4.dp.toPx(),
+                    color = style.primaryColor,
+                    radius = 4.dp.toPx() * strokeWidthFactor,
                     center = Offset(size.width / 2, 2.dp.toPx())
                 )
                 drawCircle(
-                    color = CyanNeon,
-                    radius = 4.dp.toPx(),
+                    color = style.secondaryColor,
+                    radius = 4.dp.toPx() * strokeWidthFactor,
                     center = Offset(size.width - 2.dp.toPx(), size.height / 2)
                 )
             }
@@ -168,12 +216,12 @@ fun BrandLogomotion(
                 drawCircle(
                     brush = Brush.sweepGradient(
                         listOf(
-                            CyanNeon.copy(alpha = 0.7f),
+                            style.secondaryColor.copy(alpha = 0.7f * glowIntensity),
                             Color.Transparent,
-                            EmeraldNeon.copy(alpha = 0.7f)
+                            style.primaryColor.copy(alpha = 0.7f * glowIntensity)
                         )
                     ),
-                    style = Stroke(width = 1.5.dp.toPx())
+                    style = Stroke(width = 1.5.dp.toPx() * strokeWidthFactor)
                 )
             }
 
@@ -181,23 +229,23 @@ fun BrandLogomotion(
             Box(
                 modifier = Modifier
                     .size(if (compact) 44.dp else 64.dp)
-                    .scale(pulseScale)
+                    .scale(pulseScale * coreScaleFactor)
                     .clip(CircleShape)
                     .background(
                         Brush.radialGradient(
                             listOf(
-                                EmeraldDark,
+                                style.primaryColor.copy(alpha = 0.3f),
                                 SlateDark800
                             )
                         )
                     )
-                    .border(1.5.dp, GoldGlow.copy(alpha = 0.8f), CircleShape),
+                    .border(1.5.dp, style.accentColor.copy(alpha = 0.8f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.AutoGraph,
+                    imageVector = style.coreIcon,
                     contentDescription = "Iran Binary Option Logo",
-                    tint = EmeraldGlow,
+                    tint = style.primaryColor,
                     modifier = Modifier.size(if (compact) 24.dp else 36.dp)
                 )
             }
@@ -226,8 +274,8 @@ fun BrandLogomotion(
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(6.dp))
-                    .background(EmeraldDark.copy(alpha = 0.6f))
-                    .border(0.8.dp, EmeraldNeon.copy(alpha = 0.7f), RoundedCornerShape(6.dp))
+                    .background(style.primaryColor.copy(alpha = 0.15f))
+                    .border(0.8.dp, style.primaryColor.copy(alpha = 0.7f), RoundedCornerShape(6.dp))
                     .padding(horizontal = 8.dp, vertical = 2.dp)
             ) {
                 Text(
@@ -237,7 +285,7 @@ fun BrandLogomotion(
                         letterSpacing = 1.5.sp,
                         fontSize = if (compact) 11.sp else 13.sp
                     ),
-                    color = CyanGlow
+                    color = style.primaryColor
                 )
             }
         }
@@ -253,7 +301,7 @@ fun BrandLogomotion(
                     fontSize = if (compact) 11.sp else 12.sp,
                     lineHeight = 18.sp
                 ),
-                color = AmberGold,
+                color = style.accentColor,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 8.dp)
             )
@@ -272,7 +320,7 @@ fun BrandLogomotion(
                 Icon(
                     imageVector = Icons.Default.Shield,
                     contentDescription = null,
-                    tint = EmeraldNeon,
+                    tint = style.primaryColor,
                     modifier = Modifier.size(14.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))

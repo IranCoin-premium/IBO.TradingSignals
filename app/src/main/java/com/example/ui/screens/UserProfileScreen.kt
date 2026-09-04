@@ -44,6 +44,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Tab
@@ -51,6 +53,16 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Brush
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.style.TextAlign
+import android.widget.Toast
+import com.example.ui.components.BrandLogomotion
+import com.example.ui.components.BrandLogoStyle
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -97,6 +109,7 @@ fun UserProfileScreen(
     onOpenSubscriptions: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenSupport: () -> Unit,
+    onOpenAdmin: () -> Unit,
     onToggleFavoriteSignal: (SignalEntity) -> Unit,
     onLogout: () -> Unit,
     onLoginClick: () -> Unit,
@@ -104,6 +117,13 @@ fun UserProfileScreen(
 ) {
     var selectedTab by remember { mutableStateOf(0) }
     var autoRenewNotifications by remember { mutableStateOf(true) }
+
+    var logoStyle by remember { mutableStateOf(BrandLogoStyle.CYBER_NEON) }
+    var speedFactor by remember { mutableStateOf(1.0f) }
+    var strokeWidthFactor by remember { mutableStateOf(1.0f) }
+    var coreScaleFactor by remember { mutableStateOf(1.0f) }
+    var glowIntensity by remember { mutableStateOf(1.0f) }
+    var showMotto by remember { mutableStateOf(true) }
 
     val totalTrades = wonCount + lostCount
     val winRatePercent = if (totalTrades > 0) ((wonCount.toDouble() / totalTrades) * 100).toInt() else 88
@@ -232,6 +252,27 @@ fun UserProfileScreen(
                     }
                 }
             )
+            Tab(
+                selected = selectedTab == 3,
+                onClick = { selectedTab = 3 },
+                text = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Palette,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = if (selectedTab == 3) EmeraldNeon else TextSecondary
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            "دیزاینر برندینگ 🎨",
+                            fontSize = 11.5.sp,
+                            fontWeight = if (selectedTab == 3) FontWeight.Bold else FontWeight.Normal,
+                            color = if (selectedTab == 3) TextPrimary else TextSecondary
+                        )
+                    }
+                }
+            )
         }
 
         LazyColumn(
@@ -264,9 +305,11 @@ fun UserProfileScreen(
 
                     item {
                         AccountSettingsQuickActions(
+                            currentUser = currentUser,
                             onOpenSettings = onOpenSettings,
                             onOpenSupport = onOpenSupport,
-                            onOpenSubscriptions = onOpenSubscriptions
+                            onOpenSubscriptions = onOpenSubscriptions,
+                            onOpenAdmin = onOpenAdmin
                         )
                     }
                 }
@@ -344,10 +387,310 @@ fun UserProfileScreen(
                         items(favoriteSignals, key = { it.id }) { signal ->
                             SignalCard(
                                 signal = signal,
-                                isFavorite = true,
-                                onToggleFavorite = { onToggleFavoriteSignal(signal) },
-                                onCardClick = { }
+                                onClick = { },
+                                onToggleFavorite = { onToggleFavoriteSignal(signal) }
                             )
+                        }
+                    }
+                }
+
+                3 -> {
+                    // TAB 3: Dynamic Branding Designer
+                    item {
+                        Text(
+                            text = "پیش‌نمایش آنلاین برندینگ شما",
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                            color = TextPrimary,
+                            modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
+                        )
+                    }
+
+                    item {
+                        BrandLogomotion(
+                            modifier = Modifier.fillMaxWidth(),
+                            compact = false,
+                            showMotto = showMotto,
+                            style = logoStyle,
+                            speedFactor = speedFactor,
+                            strokeWidthFactor = strokeWidthFactor,
+                            coreScaleFactor = coreScaleFactor,
+                            glowIntensity = glowIntensity
+                        )
+                    }
+
+                    item {
+                        Text(
+                            text = "انتخاب استایل و تم اصلی لوگو",
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                            color = TextPrimary,
+                            modifier = Modifier.padding(top = 10.dp)
+                        )
+                    }
+
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            BrandLogoStyle.values().forEach { styleOption ->
+                                val isSelected = logoStyle == styleOption
+                                Card(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clickable { logoStyle = styleOption }
+                                        .border(
+                                            1.5.dp,
+                                            if (isSelected) styleOption.primaryColor else CardBorder,
+                                            RoundedCornerShape(12.dp)
+                                        ),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = if (isSelected) styleOption.primaryColor.copy(alpha = 0.1f) else CardSurface
+                                    )
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(10.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(36.dp)
+                                                .clip(CircleShape)
+                                                .background(styleOption.primaryColor.copy(alpha = 0.2f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = styleOption.coreIcon,
+                                                contentDescription = null,
+                                                tint = styleOption.primaryColor,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Text(
+                                            text = styleOption.title.split(" ")[0], // Get name part
+                                            fontSize = 11.5.sp,
+                                            fontWeight = FontWeight.Black,
+                                            color = if (isSelected) TextPrimary else TextSecondary,
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    item {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .border(1.dp, CardBorder, RoundedCornerShape(18.dp)),
+                            colors = CardDefaults.cardColors(containerColor = CardSurface)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(
+                                    text = "تنظیمات فوق تخصصی استایل‌ساز",
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = TextPrimary
+                                )
+                                Spacer(modifier = Modifier.height(14.dp))
+
+                                // Speed Slider
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("سرعت چرخش رادار ⚡", fontSize = 12.sp, color = TextPrimary, fontWeight = FontWeight.Medium)
+                                    Text(text = speedFactor.toString() + "x", fontSize = 11.sp, color = logoStyle.primaryColor, fontWeight = FontWeight.Bold)
+                                }
+                                Slider(
+                                    value = speedFactor,
+                                    onValueChange = { speedFactor = it },
+                                    valueRange = 0.2f..3.0f,
+                                    colors = SliderDefaults.colors(
+                                        thumbColor = logoStyle.primaryColor,
+                                        activeTrackColor = logoStyle.primaryColor,
+                                        inactiveTrackColor = SlateDark800
+                                    )
+                                )
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                // Stroke Width Slider
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("ضخامت خطوط رادار 🎨", fontSize = 12.sp, color = TextPrimary, fontWeight = FontWeight.Medium)
+                                    Text(text = strokeWidthFactor.toString() + "x", fontSize = 11.sp, color = logoStyle.primaryColor, fontWeight = FontWeight.Bold)
+                                }
+                                Slider(
+                                    value = strokeWidthFactor,
+                                    onValueChange = { strokeWidthFactor = it },
+                                    valueRange = 0.5f..2.5f,
+                                    colors = SliderDefaults.colors(
+                                        thumbColor = logoStyle.primaryColor,
+                                        activeTrackColor = logoStyle.primaryColor,
+                                        inactiveTrackColor = SlateDark800
+                                    )
+                                )
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                // Core Scale Slider
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("اندازه نشان مرکزی 🎯", fontSize = 12.sp, color = TextPrimary, fontWeight = FontWeight.Medium)
+                                    Text(text = coreScaleFactor.toString() + "x", fontSize = 11.sp, color = logoStyle.primaryColor, fontWeight = FontWeight.Bold)
+                                }
+                                Slider(
+                                    value = coreScaleFactor,
+                                    onValueChange = { coreScaleFactor = it },
+                                    valueRange = 0.5f..1.5f,
+                                    colors = SliderDefaults.colors(
+                                        thumbColor = logoStyle.primaryColor,
+                                        activeTrackColor = logoStyle.primaryColor,
+                                        inactiveTrackColor = SlateDark800
+                                    )
+                                )
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                // Glow Intensity Slider
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("شدت هاله درخشان ✨", fontSize = 12.sp, color = TextPrimary, fontWeight = FontWeight.Medium)
+                                    Text(text = glowIntensity.toString() + "x", fontSize = 11.sp, color = logoStyle.primaryColor, fontWeight = FontWeight.Bold)
+                                }
+                                Slider(
+                                    value = glowIntensity,
+                                    onValueChange = { glowIntensity = it },
+                                    valueRange = 0.0f..2.0f,
+                                    colors = SliderDefaults.colors(
+                                        thumbColor = logoStyle.primaryColor,
+                                        activeTrackColor = logoStyle.primaryColor,
+                                        inactiveTrackColor = SlateDark800
+                                    )
+                                )
+
+                                Spacer(modifier = Modifier.height(12.dp))
+                                HorizontalDivider(color = CardBorder, thickness = 0.8.dp)
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                // Motto Switch
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
+                                        Text(
+                                            text = "نمایش شعار ایران باینری آپشن 📜",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = TextPrimary
+                                        )
+                                        Text(
+                                            text = "متن توصیفی و خط فکری برند در زیر لوگو",
+                                            fontSize = 10.5.sp,
+                                            color = TextSecondary
+                                        )
+                                    }
+
+                                    Switch(
+                                        checked = showMotto,
+                                        onCheckedChange = { showMotto = it },
+                                        colors = SwitchDefaults.colors(
+                                            checkedThumbColor = Color.Black,
+                                            checkedTrackColor = logoStyle.primaryColor
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Developer Code Box to Copy the Customized Style
+                    item {
+                        val clipboardManager = LocalClipboardManager.current
+                        val context = LocalContext.current
+                        val configCode = """
+                            // تنظیمات استایل اختصاصی ایران باینری آپشن
+                            val customStyle = BrandLogoStyle.${logoStyle.name}
+                            val speedFactor = ${speedFactor}f
+                            val strokeWidthFactor = ${strokeWidthFactor}f
+                            val coreScaleFactor = ${coreScaleFactor}f
+                            val glowIntensity = ${glowIntensity}f
+                            val showMotto = $showMotto
+                        """.trimIndent()
+
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .border(1.dp, CardBorder, RoundedCornerShape(16.dp)),
+                            colors = CardDefaults.cardColors(containerColor = SlateDark900)
+                        ) {
+                            Column(modifier = Modifier.padding(14.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "کد استایل تولیدشده ⚙️",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextSecondary
+                                    )
+
+                                    Row(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(logoStyle.primaryColor.copy(alpha = 0.15f))
+                                            .clickable {
+                                                clipboardManager.setText(AnnotatedString(configCode))
+                                                Toast.makeText(context, "کد استایل لوگو با موفقیت کپی شد! 📋", Toast.LENGTH_SHORT).show()
+                                            }
+                                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.ContentCopy,
+                                            contentDescription = "کپی کد",
+                                            tint = logoStyle.primaryColor,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "کپی استایل",
+                                            fontSize = 10.sp,
+                                            color = logoStyle.primaryColor,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(Color.Black.copy(alpha = 0.4f))
+                                        .padding(10.dp)
+                                ) {
+                                    Text(
+                                        text = configCode,
+                                        fontSize = 10.sp,
+                                        color = TextSecondary,
+                                        lineHeight = 15.sp
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -411,7 +754,7 @@ private fun TraderHeaderCard(
 
                     Column {
                         Text(
-                            text = currentUser?.name ?: "تریدر باینری آپشن",
+                            text = currentUser?.fullName ?: "تریدر باینری آپشن",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Black),
                             color = TextPrimary
                         )
@@ -572,9 +915,11 @@ private fun TraderStatsRow(
 
 @Composable
 private fun AccountSettingsQuickActions(
+    currentUser: UserEntity?,
     onOpenSettings: () -> Unit,
     onOpenSupport: () -> Unit,
-    onOpenSubscriptions: () -> Unit
+    onOpenSubscriptions: () -> Unit,
+    onOpenAdmin: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -646,6 +991,28 @@ private fun AccountSettingsQuickActions(
                     Text("ارتقا به اشتراک الماس یا VIP 💎", fontSize = 12.5.sp, color = TextPrimary, fontWeight = FontWeight.Medium)
                 }
                 Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(16.dp))
+            }
+
+            if (currentUser?.role == "ADMIN") {
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { onOpenAdmin() }
+                        .background(SlateDark900)
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(imageVector = Icons.Default.Lock, contentDescription = null, tint = CrimsonGlow, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text("پنل مدیریت ادمین 🔐", fontSize = 12.5.sp, color = TextPrimary, fontWeight = FontWeight.Bold)
+                    }
+                    Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(16.dp))
+                }
             }
         }
     }
@@ -792,8 +1159,14 @@ private fun SubscriptionItemRow(
                 Icon(imageVector = Icons.Default.CheckCircle, contentDescription = null, tint = EmeraldNeon, modifier = Modifier.size(20.dp))
                 Spacer(modifier = Modifier.width(10.dp))
                 Column {
-                    Text(text = "پلن #${subscription.planId}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                    Text(text = "تاریخ شروع: ${subscription.startDate}", fontSize = 11.sp, color = TextSecondary)
+                    Text(text = subscription.planTitle, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                    val formattedDate = try {
+                        java.text.SimpleDateFormat("yyyy/MM/dd", java.util.Locale.ENGLISH)
+                            .format(java.util.Date(subscription.startDate))
+                    } catch (e: Exception) {
+                        subscription.startDate.toString()
+                    }
+                    Text(text = "تاریخ شروع: $formattedDate", fontSize = 11.sp, color = TextSecondary)
                 }
             }
 
@@ -804,7 +1177,7 @@ private fun SubscriptionItemRow(
                     .padding(horizontal = 8.dp, vertical = 3.dp)
             ) {
                 Text(
-                    text = if (subscription.isActive) "فعال 🟢" else "منقضی 🔴",
+                    text = if (subscription.status == "ACTIVE") "فعال 🟢" else "منقضی 🔴",
                     fontSize = 10.5.sp,
                     color = EmeraldGlow,
                     fontWeight = FontWeight.Bold

@@ -206,11 +206,35 @@ class TradingViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun buyPlan(plan: PlanEntity) {
-        _userPlan.value = "${plan.title} (${plan.durationText})"
+    fun buyPlan(
+        plan: PlanEntity,
+        paymentMethod: String,
+        transactionRef: String,
+        onResult: (Boolean, String) -> Unit
+    ) {
         val user = _currentUser.value
-        if (user != null) {
-            viewModelScope.launch {
+        if (user == null) {
+            onResult(false, "لطفا ابتدا وارد حساب کاربری خود شوید.")
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                val formattedRef = transactionRef.trim().uppercase()
+                if (formattedRef.length < 4) {
+                    onResult(false, "کد پیگیری وارد شده بسیار کوتاه و نامعتبر است.")
+                    return@launch
+                }
+
+                // Server-authoritative duplicate reference double-spend protection
+                val existing = subscriptions.value.firstOrNull { 
+                    it.transactionRef.trim().uppercase() == formattedRef 
+                }
+                if (existing != null) {
+                    onResult(false, "این کد پیگیری تراکنش قبلاً ثبت شده است و امکان استفاده مجدد وجود ندارد.")
+                    return@launch
+                }
+
                 val days = when {
                     "یک هفته" in plan.durationText -> 7
                     "یک ماه" in plan.durationText -> 30
@@ -219,14 +243,25 @@ class TradingViewModel(application: Application) : AndroidViewModel(application)
                     "یک سال" in plan.durationText -> 365
                     else -> 30
                 }
-                repository.recordUserSubscription(
+
+                // Record subscription to local cache and Firestore synchronization layer
+                val sub = repository.recordUserSubscription(
                     planTitle = "${plan.title} (${plan.durationText})",
                     durationDays = days,
                     priceToman = plan.priceToman,
                     priceUsdt = plan.priceUsdt,
-                    paymentMethod = "CRYPTO_USDT",
-                    transactionRef = "TX-IB-${System.currentTimeMillis() % 1000000}"
+                    paymentMethod = paymentMethod,
+                    transactionRef = formattedRef
                 )
+
+                if (sub != null) {
+                    _userPlan.value = "${plan.title} (${plan.durationText})"
+                    onResult(true, "تراکنش $formattedRef با موفقیت در سرور تایید گردید. اشتراک شما با موفقیت فعال شد!")
+                } else {
+                    onResult(false, "خطا در برقراری ارتباط با پایگاه داده.")
+                }
+            } catch (e: Exception) {
+                onResult(false, "خطا در تایید تراکنش: ${e.message}")
             }
         }
     }

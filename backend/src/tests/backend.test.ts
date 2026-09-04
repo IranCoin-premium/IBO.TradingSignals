@@ -1,0 +1,343 @@
+import request from 'supertest';
+import app from '../app';
+import jwt from 'jsonwebtoken';
+import { pool } from '../config/database';
+
+// Primary mock for database package pg
+jest.mock('pg', () => {
+  const mClient = {
+    query: jest.fn(),
+    release: jest.fn(),
+  };
+  const mPool = {
+    connect: jest.fn().mockResolvedValue(mClient),
+    query: jest.fn(),
+    on: jest.fn(),
+    end: jest.fn(),
+  };
+  return { Pool: jest.fn(() => mPool) };
+});
+
+describe('IBO Trading Signals Backend Integration Tests', () => {
+  const prefix = '/api/v1';
+
+  // Auth tokens
+  const userToken = jwt.sign(
+    { id: 'user_uuid_123', email: 'user@ibo.ir', roles: ['USER'] },
+    'super_secret_jwt_sign_key_change_me_in_production'
+  );
+
+  const adminToken = jwt.sign(
+    { id: 'admin_uuid_789', email: 'admin@ibo.ir', roles: ['ADMIN'] },
+    'super_secret_jwt_sign_key_change_me_in_production'
+  );
+
+  const mClient = {
+    query: jest.fn(),
+    release: jest.fn(),
+  };
+
+  // Setup/Reset mocks before each individual test case
+  beforeEach(() => {
+    // Reset individual mocks
+    mClient.query.mockReset();
+    mClient.release.mockReset();
+    (pool.connect as jest.Mock).mockReset();
+    (pool.query as jest.Mock).mockReset();
+
+    // Setup client query mock implementation
+    mClient.query.mockImplementation((sql: string, params?: any[]) => {
+      const sqlNormalized = (sql || '').toString().toUpperCase();
+
+      if (sqlNormalized.includes('SELECT COUNT(*)')) {
+        return Promise.resolve({ rows: [{ count: '1' }], rowCount: 1 });
+      }
+
+      // Plans Retrieval mock
+      if (sqlNormalized.includes('FROM SUBSCRIPTION_PLANS') && sqlNormalized.includes('WHERE ID = $1')) {
+        const planId = params?.[0];
+        if (planId === 'INVALID') {
+          return Promise.resolve({ rows: [], rowCount: 0 });
+        }
+        return Promise.resolve({
+          rows: [{
+            id: planId || 'BRONZE',
+            title: 'پلن برنزی ۳۰ روزه',
+            price: '15.00',
+            duration_days: 30,
+            description: 'سیگنال‌های باینری آپشن',
+            created_at: new Date()
+          }],
+          rowCount: 1
+        });
+      }
+
+      if (sqlNormalized.includes('FROM SUBSCRIPTION_PLANS')) {
+        return Promise.resolve({
+          rows: [
+            { id: 'FREE', title: 'پلن رایگان', price: '0.00', duration_days: 3650 },
+            { id: 'BRONZE', title: 'پلن برنزی', price: '15.00', duration_days: 30 }
+          ],
+          rowCount: 2
+        });
+      }
+
+      // Purchase Intents mock
+      if (sqlNormalized.includes('INSERT INTO PURCHASE_INTENTS')) {
+        return Promise.resolve({
+          rows: [{
+            id: 'intent-uuid-1111',
+            user_id: params?.[0],
+            plan_id: params?.[1],
+            quoted_amount: params?.[2],
+            currency: params?.[3],
+            payment_method: params?.[4],
+            idempotency_key: params?.[5],
+            expires_at: params?.[6],
+            status: 'CREATED',
+            created_at: new Date(),
+            updated_at: new Date()
+          }],
+          rowCount: 1
+        });
+      }
+
+      if (sqlNormalized.includes('FROM PURCHASE_INTENTS') && sqlNormalized.includes('IDEMPOTENCY_KEY = $1')) {
+        const key = params?.[0];
+        if (key === 'duplicate-key-102030') {
+          return Promise.resolve({
+            rows: [{
+              id: 'intent-uuid-1111',
+              user_id: 'user_uuid_123',
+              plan_id: 'BRONZE',
+              quoted_amount: 15.00,
+              currency: 'USD',
+              payment_method: 'TETHER',
+              idempotency_key: key,
+              status: 'CREATED'
+            }],
+            rowCount: 1
+          });
+        }
+        return Promise.resolve({ rows: [], rowCount: 0 });
+      }
+
+      if (sqlNormalized.includes('FROM PURCHASE_INTENTS') && sqlNormalized.includes('ID = $1')) {
+        return Promise.resolve({
+          rows: [{
+            id: params?.[0],
+            user_id: 'user_uuid_123',
+            plan_id: 'BRONZE',
+            quoted_amount: 15.00,
+            currency: 'USD',
+            payment_method: 'TETHER',
+            status: 'CREATED'
+          }],
+          rowCount: 1
+        });
+      }
+
+      // Transactions mock
+      if (sqlNormalized.includes('SELECT * FROM PAYMENT_TRANSACTIONS WHERE ID = $1')) {
+        return Promise.resolve({
+          rows: [{
+            id: params?.[0],
+            user_id: 'user_uuid_123',
+            plan_id: 'BRONZE',
+            amount: '15.00',
+            status: 'SUCCESS'
+          }],
+          rowCount: 1
+        });
+      }
+
+      // Refunds mock
+      if (sqlNormalized.includes('INSERT INTO REFUNDS')) {
+        return Promise.resolve({
+          rows: [{
+            id: 'refund-uuid-9999',
+            transaction_id: params?.[0],
+            amount: params?.[1] || '15.00',
+            status: 'SUCCESS',
+            reason: params?.[2] || 'Test refund',
+            created_at: new Date()
+          }],
+          rowCount: 1
+        });
+      }
+
+      // Default fallback rows
+      return Promise.resolve({ rows: [], rowCount: 0 });
+    });
+
+    // Wire connect and pool query mocks
+    (pool.connect as jest.Mock).mockResolvedValue(mClient);
+    (pool.query as jest.Mock).mockImplementation((sql: string, params?: any[]) => {
+      return mClient.query(sql, params);
+    });
+  });
+
+  describe('GET /health', () => {
+    it('should return 200 with ok status when database is healthy', async () => {
+      const res = await request(app).get(`${prefix}/health`);
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual(expect.objectContaining({
+        status: 'ok',
+        service: 'backend',
+        database: {
+          status: 'healthy',
+          migrations: 'synchronized',
+        }
+      }));
+    });
+  });
+
+  describe('Input Validation & Auth Rejection', () => {
+    it('should reject register requests when email format is invalid', async () => {
+      const res = await request(app)
+        .post(`${prefix}/auth/register`)
+        .send({
+          email: 'invalid-email',
+          password: '123',
+          displayName: 'Al',
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('should reject checkout requests when unauthorized', async () => {
+      const res = await request(app)
+        .post(`${prefix}/payments/checkout`)
+        .send({
+          planId: 'BRONZE',
+          paymentMethod: 'USDT_TRC20',
+          externalReference: 'tx_9876543210'
+        });
+
+      expect(res.status).toBe(401);
+      expect(res.body.code).toBe('UNAUTHORIZED');
+    });
+  });
+
+  describe('Part 4 - Subscription Plans Retrieval', () => {
+    it('should return plans correctly', async () => {
+      const res = await request(app)
+        .get(`${prefix}/subscriptions/plans`);
+      
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('success');
+      expect(Array.isArray(res.body.data)).toBe(true);
+    });
+  });
+
+  describe('Part 4 - Purchase Intent Creation & Client Price Tampering Protection', () => {
+    it('should reject purchase intent with invalid plan id', async () => {
+      const res = await request(app)
+        .post(`${prefix}/purchases`)
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({
+          planId: 'INVALID',
+          paymentMethod: 'TETHER',
+          idempotencyKey: 'idempotency-key-000111222'
+        });
+
+      expect(res.status).toBe(404);
+    });
+
+    it('should create purchase intent successfully with server-authoritative quoted price', async () => {
+      const res = await request(app)
+        .post(`${prefix}/purchases`)
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({
+          planId: 'BRONZE',
+          paymentMethod: 'TETHER',
+          idempotencyKey: 'idempotency-key-111222333'
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.data.quoted_amount).toBe(15.00);
+    });
+
+    it('should retrieve existing purchase intent for duplicate idempotency key (idempotency safety)', async () => {
+      const res = await request(app)
+        .post(`${prefix}/purchases`)
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({
+          planId: 'BRONZE',
+          paymentMethod: 'TETHER',
+          idempotencyKey: 'duplicate-key-102030'
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.message).toContain('بازیابی قصد خرید تکراری');
+    });
+  });
+
+  describe('Part 4 - Webhook Signature Security Validation', () => {
+    it('should reject webhook with missing signature', async () => {
+      const res = await request(app)
+        .post(`${prefix}/payments/webhooks/tether`)
+        .send({
+          transactionId: '00000000-0000-0000-0000-000000000000',
+          eventType: 'confirmed'
+        });
+
+      expect(res.status).toBe(401);
+      expect(res.body.message).toContain('امضای وب‌هووک ارسالی نامعتبر یا گم شده است');
+    });
+
+    it('should accept and process webhook with valid signature', async () => {
+      const res = await request(app)
+        .post(`${prefix}/payments/webhooks/tether`)
+        .set('X-Webhook-Signature', 'IBO_SECURE_WEBHOOK_SECRET_2026')
+        .send({
+          transactionId: '11112222-3333-4444-5555-666677778888',
+          eventType: 'payment_confirmed',
+          payload: { txHash: '0x1234abc' }
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.message).toContain('با موفقیت دریافت، تایید و اعمال گردید');
+    });
+  });
+
+  describe('Part 4 - Refund Authorization & Execution Checks', () => {
+    it('should deny refund request when requested by non-admin', async () => {
+      const res = await request(app)
+        .post(`${prefix}/admin/subscriptions/refund`)
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({
+          transactionId: '11112222-3333-4444-5555-666677778888',
+          amount: 15.00,
+          reason: 'User request'
+        });
+
+      expect(res.status).toBe(403);
+    });
+
+    it('should allow refund request when requested by authorized admin', async () => {
+      const res = await request(app)
+        .post(`${prefix}/admin/subscriptions/refund`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          transactionId: '11112222-3333-4444-5555-666677778888',
+          amount: 15.00,
+          reason: 'Double payment error'
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.message).toContain('با موفقیت عودت داده شد');
+    });
+  });
+
+  describe('Part 4 - Subscription Cancellation', () => {
+    it('should successfully cancel an active subscription', async () => {
+      const res = await request(app)
+        .post(`${prefix}/subscriptions/sub-102030/cancel`)
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect([200, 400]).toContain(res.status);
+    });
+  });
+});

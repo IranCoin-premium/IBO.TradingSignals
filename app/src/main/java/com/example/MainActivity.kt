@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Feed
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Stars
 import androidx.compose.material.icons.filled.TrendingUp
@@ -69,6 +70,7 @@ import com.example.ui.screens.SignalsHomeScreen
 import com.example.ui.screens.SplashScreen
 import com.example.ui.screens.SubscriptionScreen
 import com.example.ui.screens.TradeJournalScreen
+import com.example.ui.screens.UserProfileScreen
 import com.example.ui.theme.CardBorder
 import com.example.ui.theme.EmeraldGlow
 import com.example.ui.theme.EmeraldNeon
@@ -89,6 +91,7 @@ sealed class Screen(val route: String, val title: String, val icon: androidx.com
     object News : Screen("news", "فید اخبار", Icons.Default.Feed)
     object Article : Screen("article", "دانشنامه سئو", Icons.Default.Book)
     object Admin : Screen("admin", "پنل ادمین", Icons.Default.AdminPanelSettings)
+    object UserProfile : Screen("user_profile", "پروفایل من", Icons.Default.Person)
     object Settings : Screen("settings", "تنظیمات نوتیفیکیشن", Icons.Default.Settings)
     object NotFound : Screen("not_found", "خطای ۴۰۴", Icons.Default.TrendingUp)
 }
@@ -170,7 +173,7 @@ class MainActivity : ComponentActivity() {
                         Screen.TradeJournal,
                         Screen.Subscriptions,
                         Screen.News,
-                        Screen.Admin
+                        Screen.UserProfile
                     )
 
                     val showBottomBar = currentRoute in bottomNavItems.map { it.route }
@@ -331,8 +334,8 @@ class MainActivity : ComponentActivity() {
                                         currentUserPlan = userPlan,
                                         subscriptions = subscriptions,
                                         offlineCacheStatus = offlineCacheStatus,
-                                        onBuyPlan = { plan ->
-                                            viewModel.buyPlan(plan)
+                                        onBuyPlan = { plan, method, ref, callback ->
+                                            viewModel.buyPlan(plan, method, ref, callback)
                                         }
                                     )
                                 }
@@ -408,6 +411,49 @@ class MainActivity : ComponentActivity() {
                                         },
                                         onRunAiAgent = { prompt ->
                                             viewModel.runAiAgent(prompt)
+                                        }
+                                    )
+                                }
+
+                                composable(Screen.UserProfile.route) {
+                                    val favoriteSignals = signals.filter { it.isFavorite }
+                                    UserProfileScreen(
+                                        currentUser = currentUser,
+                                        userPlan = userPlan,
+                                        favoriteSignals = favoriteSignals,
+                                        subscriptions = subscriptions,
+                                        tradeLogsCount = tradeLogs.size,
+                                        wonCount = wonCount,
+                                        lostCount = lostCount,
+                                        onBack = { navController.popBackStack() },
+                                        onOpenSubscriptions = {
+                                            navController.navigate(Screen.Subscriptions.route) {
+                                                popUpTo(Screen.Home.route)
+                                                launchSingleTop = true
+                                            }
+                                        },
+                                        onOpenSettings = {
+                                            navController.navigate(Screen.Settings.route) {
+                                                launchSingleTop = true
+                                            }
+                                        },
+                                        onOpenSupport = {
+                                            showSupportSheet = true
+                                        },
+                                        onOpenAdmin = {
+                                            navController.navigate(Screen.Admin.route) {
+                                                launchSingleTop = true
+                                            }
+                                        },
+                                        onToggleFavoriteSignal = { signal ->
+                                            viewModel.toggleFavorite(signal)
+                                        },
+                                        onLogout = {
+                                            viewModel.logout()
+                                            Toast.makeText(context, "از حساب کاربری خارج شدید.", Toast.LENGTH_SHORT).show()
+                                        },
+                                        onLoginClick = {
+                                            showAuthSheet = true
                                         }
                                     )
                                 }

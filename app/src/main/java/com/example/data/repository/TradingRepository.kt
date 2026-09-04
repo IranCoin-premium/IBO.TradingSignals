@@ -95,7 +95,7 @@ class TradingRepository(
                 db.userDao().insertUser(
                     UserEntity(
                         email = "admin@iranbinary.ir",
-                        passwordHash = "IranBinaryAdmin2026!",
+                        passwordHash = com.example.BuildConfig.SEED_ADMIN_PASSWORD,
                         fullName = "مدیریت ارشد ایران باینری آپشن",
                         role = "ADMIN",
                         activePlan = "یک ساله",
