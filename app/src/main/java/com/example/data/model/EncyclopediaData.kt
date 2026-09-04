@@ -416,7 +416,7 @@ object EncyclopediaRepository {
             tags = listOf("Spinning Top", "فرفره", "بلاتکلیفی")
         ),
         EncyclopediaItem(
-            id = "s36_28", sectionNumber = 28, sectionType = "SECTION_28",
+            id = "s36_28", sectionNumber = 28, sectionType = "SECTION_36",
             sectionTitleBadge = "الگوی ۲۸ از ۳۶ • الگوی کلاسیک کف",
             title = "الگوی کف دوقلو (Double Bottom - W)",
             titleEn = "Double Bottom Reversal Pattern",
