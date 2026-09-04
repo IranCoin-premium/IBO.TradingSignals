@@ -43,10 +43,26 @@ services:
     networks:
       - ibo_network
 
+  n8n:
+    image: n8nio/n8n:latest
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+      - WEBHOOK_URL=http://localhost:5678/
+      - GENERIC_TIMEZONE=UTC
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - ibo_network
+    restart: unless-stopped
+
 networks:
   ibo_network:
     driver: bridge
 
 volumes:
   pgdata:
+    driver: local
+  n8n_data:
     driver: local

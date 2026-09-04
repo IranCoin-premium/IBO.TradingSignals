@@ -166,6 +166,65 @@ describe('IBO Trading Signals Backend Integration Tests', () => {
         });
       }
 
+      // Agents mock
+      if (sqlNormalized.includes('FROM AGENTS') && sqlNormalized.includes('AGENT_ID = $1')) {
+        const agentId = params?.[0];
+        if (agentId === 'agent-active-01') {
+          return Promise.resolve({
+            rows: [{
+              agent_id: agentId,
+              name: 'Test Supervisor',
+              role: 'SUPERVISOR',
+              model: 'gemini-3.5-flash',
+              status: 'ACTIVE',
+              permissions: ['REPO_READ', 'RUN_TESTS', 'PUBLISH_CONTENT', 'WRITE_DATABASE', 'MANAGE_SECURITY']
+            }],
+            rowCount: 1
+          });
+        }
+        return Promise.resolve({ rows: [], rowCount: 0 });
+      }
+
+      if (sqlNormalized.includes('FROM AGENT_TOOLS') && sqlNormalized.includes('TOOL_ID = $1')) {
+        const toolId = params?.[0];
+        if (toolId === 'read_repository') {
+          return Promise.resolve({
+            rows: [{
+              tool_id: toolId,
+              name: 'Read Repository',
+              risk_level: 'R0',
+              required_permissions: ['REPO_READ'],
+              enabled: true
+            }],
+            rowCount: 1
+          });
+        }
+        if (toolId === 'modify_production_db') {
+          return Promise.resolve({
+            rows: [{
+              tool_id: toolId,
+              name: 'Modify Production DB',
+              risk_level: 'R4',
+              required_permissions: ['WRITE_DATABASE', 'MANAGE_SECURITY'],
+              enabled: true
+            }],
+            rowCount: 1
+          });
+        }
+        return Promise.resolve({ rows: [], rowCount: 0 });
+      }
+
+      if (sqlNormalized.includes('FROM AGENT_KILL_SWITCH')) {
+        return Promise.resolve({
+          rows: [{ enabled: false }],
+          rowCount: 1
+        });
+      }
+
+      if (sqlNormalized.includes('INSERT INTO AGENT_JOBS') || sqlNormalized.includes('INSERT INTO AGENT_AUDIT_LOGS') || sqlNormalized.includes('INSERT INTO AGENT_KILL_SWITCH') || sqlNormalized.includes('UPDATE AGENT_JOBS')) {
+        return Promise.resolve({ rows: [{ success: true }], rowCount: 1 });
+      }
+
       // Default fallback rows
       return Promise.resolve({ rows: [], rowCount: 0 });
     });
@@ -338,6 +397,56 @@ describe('IBO Trading Signals Backend Integration Tests', () => {
         .set('Authorization', `Bearer ${userToken}`);
 
       expect([200, 400]).toContain(res.status);
+    });
+  });
+
+  describe('Part 6 - Agent Orchestration, Supervisor & Governance Foundation', () => {
+    it('should successfully dispatch job when agent is valid and authorized', async () => {
+      const res = await request(app)
+        .post(`${prefix}/agents/jobs`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          agent_id: 'agent-active-01',
+          tool_id: 'read_repository',
+          action: 'READ_FILES',
+          target_resource: '/backend/src/app.ts',
+          environment: 'DEVELOPMENT',
+          payload: { path: '/backend/src/app.ts' }
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.job_id).toBeDefined();
+    });
+
+    it('should deny job dispatch when agent is unknown or missing', async () => {
+      const res = await request(app)
+        .post(`${prefix}/agents/jobs`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          agent_id: 'agent-unknown-999',
+          tool_id: 'read_repository',
+          action: 'READ_FILES',
+          target_resource: '/backend/src/app.ts',
+          environment: 'DEVELOPMENT'
+        });
+
+      expect(res.status).toBe(403);
+      expect(res.body.errorCode).toBe('AGENT_ACTION_VETOED');
+    });
+
+    it('should allow admin to update kill switch state', async () => {
+      const res = await request(app)
+        .post(`${prefix}/agents/kill-switch`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          switch_key: 'GLOBAL_KILL_SWITCH',
+          enabled: true
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.enabled).toBe(true);
     });
   });
 });

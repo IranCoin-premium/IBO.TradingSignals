@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">İran İkili Opsiyon</string>
+    <string name="nav_signals">İşlem Sinyalleri</string>
+    <string name="nav_subscription">VIP Abonelik</string>
+    <string name="nav_support">7/24 Destek</string>
+    <string name="support_title">7/24 Akıllı Destek</string>
+    <string name="support_submit">Talep Gönder</string>
+</resources>

@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Opción Binaria Irán</string>
+    <string name="nav_signals">Señales de Trading</string>
+    <string name="nav_subscription">Suscripción VIP</string>
+    <string name="nav_support">Soporte 24/7</string>
+    <string name="support_title">Soporte Inteligente 24/7</string>
+    <string name="support_submit">Enviar Ticket</string>
+</resources>

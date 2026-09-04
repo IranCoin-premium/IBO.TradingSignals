@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">إيران خيارات ثنائية</string>
+    <string name="nav_signals">إشارات التداول</string>
+    <string name="nav_subscription">اشتراك VIP</string>
+    <string name="nav_support">الدعم 24/7</string>
+    <string name="support_title">الدعم الذكي على مدار الساعة</string>
+    <string name="support_submit">إرسال التذكرة</string>
+</resources>

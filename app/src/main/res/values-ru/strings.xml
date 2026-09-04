@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Иран Бинарные Опционы</string>
+    <string name="nav_signals">Торговые Сигналы</string>
+    <string name="nav_subscription">VIP Подписка</string>
+    <string name="nav_support">Поддержка 24/7</string>
+    <string name="support_title">Интеллектуальная поддержка 24/7</string>
+    <string name="support_submit">Отправить тикет</string>
+</resources>

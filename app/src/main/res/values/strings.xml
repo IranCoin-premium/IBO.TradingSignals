@@ -1,4 +1,8 @@
 <resources>
     <string name="app_name">ایران باینری آپشن</string>
+    <string name="nav_signals">سیگنال‌های معاملاتی</string>
+    <string name="nav_subscription">اشتراک VIP</string>
+    <string name="nav_support">پشتیبانی ۲۴/۷</string>
+    <string name="support_title">پشتیبانی هوشمند و ۲۴ ساعته</string>
+    <string name="support_submit">ارسال تیکت</string>
 </resources>
-
