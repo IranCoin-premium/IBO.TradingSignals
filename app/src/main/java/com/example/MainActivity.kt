@@ -17,9 +17,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AdminPanelSettings
+import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Feed
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Stars
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -60,10 +62,12 @@ import com.example.ui.screens.AuthModal
 import com.example.ui.screens.NewsScreen
 import com.example.ui.screens.NotFoundScreen
 import com.example.ui.screens.OnboardingTutorialScreen
+import com.example.ui.screens.SettingsScreen
 import com.example.ui.screens.SignalHistoryScreen
 import com.example.ui.screens.SignalsHomeScreen
 import com.example.ui.screens.SplashScreen
 import com.example.ui.screens.SubscriptionScreen
+import com.example.ui.screens.TradeJournalScreen
 import com.example.ui.theme.CardBorder
 import com.example.ui.theme.EmeraldGlow
 import com.example.ui.theme.EmeraldNeon
@@ -78,11 +82,13 @@ sealed class Screen(val route: String, val title: String, val icon: androidx.com
     object Splash : Screen("splash", "شروع", Icons.Default.TrendingUp)
     object OnboardingTutorial : Screen("onboarding_tutorial", "آموزش سیگنال‌ها", Icons.Default.TrendingUp)
     object Home : Screen("home", "سیگنال‌ها", Icons.Default.TrendingUp)
+    object TradeJournal : Screen("trade_journal", "ژورنال ترید", Icons.Default.Assessment)
     object SignalHistory : Screen("signal_history", "تاریخچه سیگنال‌ها", Icons.Default.History)
     object Subscriptions : Screen("subscriptions", "اشتراک ۵ گانه", Icons.Default.Stars)
     object News : Screen("news", "فید اخبار", Icons.Default.Feed)
     object Article : Screen("article", "دانشنامه سئو", Icons.Default.Book)
     object Admin : Screen("admin", "پنل ادمین", Icons.Default.AdminPanelSettings)
+    object Settings : Screen("settings", "تنظیمات نوتیفیکیشن", Icons.Default.Settings)
     object NotFound : Screen("not_found", "خطای ۴۰۴", Icons.Default.TrendingUp)
 }
 
@@ -110,6 +116,8 @@ class MainActivity : ComponentActivity() {
                     val wonCount by viewModel.wonCount.collectAsState()
                     val lostCount by viewModel.lostCount.collectAsState()
                     val vetoCount by viewModel.vetoCount.collectAsState()
+                    val notificationSettings by viewModel.notificationSettings.collectAsState()
+                    val tradeLogs by viewModel.tradeLogs.collectAsState()
 
                     var showSupportSheet by remember { mutableStateOf(false) }
                     var showAuthSheet by remember { mutableStateOf(false) }
@@ -156,9 +164,9 @@ class MainActivity : ComponentActivity() {
 
                     val bottomNavItems = listOf(
                         Screen.Home,
+                        Screen.TradeJournal,
                         Screen.Subscriptions,
                         Screen.News,
-                        Screen.Article,
                         Screen.Admin
                     )
 
@@ -245,7 +253,7 @@ class MainActivity : ComponentActivity() {
                                     )
                                 }
 
-                                composable(Screen.Home.route) {
+                                 composable(Screen.Home.route) {
                                     SignalsHomeScreen(
                                         signals = signals,
                                         brokers = viewModel.brokers,
@@ -267,6 +275,33 @@ class MainActivity : ComponentActivity() {
                                         },
                                         onOpenNotFoundTest = {
                                             navController.navigate(Screen.NotFound.route)
+                                        },
+                                        onOpenSettings = {
+                                            navController.navigate(Screen.Settings.route)
+                                        },
+                                        onOpenTradeJournal = {
+                                            navController.navigate(Screen.TradeJournal.route)
+                                        },
+                                        onOpenArticles = {
+                                            navController.navigate(Screen.Article.route)
+                                        },
+                                        onSubmitFeedback = { feedbackType, asset, signalId, reasonCategory, description, rating, contactInfo ->
+                                            viewModel.submitFeedback(
+                                                feedbackType = feedbackType,
+                                                asset = asset,
+                                                signalId = signalId,
+                                                reasonCategory = reasonCategory,
+                                                description = description,
+                                                rating = rating,
+                                                contactInfo = contactInfo,
+                                                onComplete = { success ->
+                                                    Toast.makeText(
+                                                        context,
+                                                        if (success) "بازخورد شما با موفقیت در دیتابیس ثبت شد." else "خطا در ثبت بازخورد.",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+                                                }
+                                            )
                                         }
                                     )
                                 }
@@ -280,7 +315,35 @@ class MainActivity : ComponentActivity() {
                                         onBack = { navController.popBackStack() },
                                         onDeleteSignal = { id -> viewModel.deleteSignal(id) },
                                         onClearHistory = { viewModel.clearHistoricalSignals() },
-                                        onAddSampleSignal = { signal -> viewModel.addSignal(signal) }
+                                        onAddSampleSignal = { signal -> viewModel.addSignal(signal) },
+                                        onSubmitFeedback = { feedbackType, asset, signalId, reasonCategory, description, rating, contactInfo ->
+                                            viewModel.submitFeedback(
+                                                feedbackType = feedbackType,
+                                                asset = asset,
+                                                signalId = signalId,
+                                                reasonCategory = reasonCategory,
+                                                description = description,
+                                                rating = rating,
+                                                contactInfo = contactInfo,
+                                                onComplete = { success ->
+                                                    Toast.makeText(
+                                                        context,
+                                                        if (success) "بازخورد شما با موفقیت در دیتابیس ثبت شد." else "خطا در ثبت بازخورد.",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+                                                }
+                                            )
+                                        }
+                                    )
+                                }
+
+                                composable(Screen.TradeJournal.route) {
+                                    TradeJournalScreen(
+                                        tradeLogs = tradeLogs,
+                                        onAddTradeLog = { trade -> viewModel.addTradeLog(trade) },
+                                        onUpdateTradeLog = { trade -> viewModel.updateTradeLog(trade) },
+                                        onDeleteTradeLog = { id -> viewModel.deleteTradeLog(id) },
+                                        onClearAll = { viewModel.clearAllTradeLogs() }
                                     )
                                 }
 
@@ -300,13 +363,17 @@ class MainActivity : ComponentActivity() {
                                     NewsScreen(
                                         newsList = newsList,
                                         onRefresh = {
-                                            Toast.makeText(context, "فید اخبار فاندامنتال با موفقیت به‌روزرسانی شد.", Toast.LENGTH_SHORT).show()
+                                            viewModel.refreshLatestFinancialNews {
+                                                Toast.makeText(context, "فید اخبار و تحلیل‌های مالی بازارهای ۲۰۲۶ به‌روزرسانی شد.", Toast.LENGTH_SHORT).show()
+                                            }
                                         }
                                     )
                                 }
 
                                 composable(Screen.Article.route) {
-                                    ArticleGuideScreen()
+                                    ArticleGuideScreen(
+                                        onBack = { navController.popBackStack() }
+                                    )
                                 }
 
                                 composable(Screen.Admin.route) {
@@ -364,6 +431,20 @@ class MainActivity : ComponentActivity() {
                                         onRunAiAgent = { prompt ->
                                             viewModel.runAiAgent(prompt)
                                         }
+                                    )
+                                }
+
+                                composable(Screen.Settings.route) {
+                                    SettingsScreen(
+                                        settings = notificationSettings,
+                                        onToggleMaster = { enabled -> viewModel.toggleMasterNotifications(enabled) },
+                                        onToggleCategory = { cat, enabled -> viewModel.toggleCategoryNotification(cat, enabled) },
+                                        onToggleHighAccuracyOnly = { enabled -> viewModel.toggleHighAccuracyOnly(enabled) },
+                                        onToggleRiskWarnings = { enabled -> viewModel.toggleRiskWarnings(enabled) },
+                                        onToggleSound = { enabled -> viewModel.toggleSound(enabled) },
+                                        onToggleVibration = { enabled -> viewModel.toggleVibration(enabled) },
+                                        onResetDefaults = { viewModel.resetNotificationSettings() },
+                                        onBack = { navController.popBackStack() }
                                     )
                                 }
 

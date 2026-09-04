@@ -41,6 +41,7 @@ import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Psychology
+import androidx.compose.material.icons.filled.RateReview
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shield
@@ -58,6 +59,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -87,6 +89,8 @@ import com.example.ui.theme.CrimsonGlow
 import com.example.ui.theme.CrimsonRed
 import com.example.ui.theme.CyanGlow
 import com.example.ui.theme.CyanNeon
+import com.example.ui.components.SubmitFeedbackDialog
+import com.example.ui.components.WinRateTimelineChart
 import com.example.ui.theme.EmeraldDark
 import com.example.ui.theme.EmeraldGlow
 import com.example.ui.theme.EmeraldNeon
@@ -112,7 +116,8 @@ fun SignalHistoryScreen(
     onBack: () -> Unit,
     onDeleteSignal: (Long) -> Unit,
     onClearHistory: () -> Unit,
-    onAddSampleSignal: (SignalEntity) -> Unit
+    onAddSampleSignal: (SignalEntity) -> Unit,
+    onSubmitFeedback: ((feedbackType: String, asset: String?, signalId: Long?, reasonCategory: String?, description: String, rating: Int, contactInfo: String?) -> Unit)? = null
 ) {
     val context = LocalContext.current
     var searchQuery by remember { mutableStateOf("") }
@@ -120,6 +125,8 @@ fun SignalHistoryScreen(
     var selectedCategoryFilter by remember { mutableStateOf("ALL") }
     var showClearConfirmDialog by remember { mutableStateOf(false) }
     var selectedSignalDetail by remember { mutableStateOf<SignalEntity?>(null) }
+    var showFeedbackDialog by remember { mutableStateOf(false) }
+    var targetFeedbackSignal by remember { mutableStateOf<SignalEntity?>(null) }
 
     // Filter logic
     val filteredSignals = remember(signals, searchQuery, selectedOutcomeFilter, selectedCategoryFilter) {
@@ -263,6 +270,27 @@ fun SignalHistoryScreen(
                         imageVector = Icons.Default.Add,
                         contentDescription = "ثبت سیگنال جدید در دیتابیس Room",
                         tint = CyanGlow,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                IconButton(
+                    onClick = {
+                        targetFeedbackSignal = null
+                        showFeedbackDialog = true
+                    },
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(SlateDark800)
+                        .testTag("open_history_feedback_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.RateReview,
+                        contentDescription = "ثبت بازخورد و گزارش خطا",
+                        tint = AmberGold,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -429,6 +457,13 @@ fun SignalHistoryScreen(
                         )
                     }
                 }
+            }
+
+            // 2.5 Win Rate Timeline Chart (Room DB Analytics)
+            item {
+                WinRateTimelineChart(
+                    signals = signals
+                )
             }
 
             // 3. Search and Quick Filters
@@ -807,6 +842,31 @@ fun SignalHistoryScreen(
                         ),
                         color = TextPrimary
                     )
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    OutlinedButton(
+                        onClick = {
+                            targetFeedbackSignal = signal
+                            selectedSignalDetail = null
+                            showFeedbackDialog = true
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, AmberGold.copy(alpha = 0.5f)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = AmberGold)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.RateReview,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "گزارش عدم انطباق یا ارسال بازخورد برای این سیگنال",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             },
             confirmButton = {
@@ -816,6 +876,23 @@ fun SignalHistoryScreen(
                 ) {
                     Text("بستن", color = Color.Black, fontWeight = FontWeight.Bold)
                 }
+            }
+        )
+    }
+
+    if (showFeedbackDialog) {
+        SubmitFeedbackDialog(
+            initialSignal = targetFeedbackSignal,
+            userEmail = null,
+            availableSignals = signals,
+            onDismiss = {
+                showFeedbackDialog = false
+                targetFeedbackSignal = null
+            },
+            onSubmit = { type, asset, signalId, reason, desc, rating, contact ->
+                showFeedbackDialog = false
+                targetFeedbackSignal = null
+                onSubmitFeedback?.invoke(type, asset, signalId, reason, desc, rating, contact)
             }
         )
     }

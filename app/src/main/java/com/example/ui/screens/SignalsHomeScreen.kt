@@ -26,7 +26,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.AutoGraph
+import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Headphones
@@ -101,6 +103,9 @@ fun SignalsHomeScreen(
     onOpenTutorial: () -> Unit,
     onOpenHistory: () -> Unit,
     onOpenNotFoundTest: () -> Unit,
+    onOpenSettings: () -> Unit = {},
+    onOpenTradeJournal: () -> Unit = {},
+    onOpenArticles: () -> Unit = {},
     onSubmitFeedback: ((feedbackType: String, asset: String?, signalId: Long?, reasonCategory: String?, description: String, rating: Int, contactInfo: String?) -> Unit)? = null
 ) {
     var selectedCategory by remember { mutableStateOf("ALL") }
@@ -217,19 +222,14 @@ fun SignalsHomeScreen(
 
                     Spacer(modifier = Modifier.width(8.dp))
 
-                    // FCM Push Notifications Live Status
+                    // Notification Settings (DataStore) & FCM Live Status
                     IconButton(
-                        onClick = {
-                            Toast.makeText(
-                                context,
-                                "🔔 دریافت آنی سیگنال‌های طلایی با Firebase Cloud Messaging (FCM) فعال است.",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        },
+                        onClick = onOpenSettings,
                         modifier = Modifier
                             .size(36.dp)
                             .clip(CircleShape)
                             .background(SlateDark800)
+                            .testTag("open_settings_button")
                     ) {
                         BadgedBox(
                             badge = {
@@ -241,11 +241,58 @@ fun SignalsHomeScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.NotificationsActive,
-                                contentDescription = "وضعیت نوتیفیکیشن‌های FCM",
+                                contentDescription = "تنظیمات نوتیفیکیشن‌ها و دسته‌بندی‌ها (DataStore)",
                                 tint = EmeraldNeon,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    // Encyclopedia / 3 Educational Sections Header Button
+                    IconButton(
+                        onClick = onOpenArticles,
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(SlateDark800)
+                            .testTag("open_encyclopedia_header_button")
+                    ) {
+                        BadgedBox(
+                            badge = {
+                                Badge(
+                                    containerColor = AmberGold,
+                                    modifier = Modifier.size(6.dp)
+                                )
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Book,
+                                contentDescription = "دانشنامه جامع ۳ گانه (بخش‌های ۶، ۳۶ و ۶۷ تایی)",
+                                tint = CyanGlow,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    // Trade Journal (Personal Logs & Analytics) Header Button
+                    IconButton(
+                        onClick = onOpenTradeJournal,
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(SlateDark800)
+                            .testTag("open_trade_journal_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Assessment,
+                            contentDescription = "ژورنال و دفترچه معاملات شخصی",
+                            tint = EmeraldNeon,
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
 
                     Spacer(modifier = Modifier.width(8.dp))
@@ -467,6 +514,155 @@ fun SignalsHomeScreen(
                         imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                         contentDescription = "ورود به تاریخچه",
                         tint = EmeraldNeon,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
+
+        // 3.7. Trade Journal & Performance Tracker Banner
+        item {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .clickable { onOpenTradeJournal() },
+                colors = CardDefaults.cardColors(containerColor = SlateDark900),
+                border = androidx.compose.foundation.BorderStroke(1.dp, AmberGold.copy(alpha = 0.5f))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(AmberGold.copy(alpha = 0.15f))
+                                .border(1.dp, AmberGold, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Assessment,
+                                contentDescription = null,
+                                tint = AmberGold,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "دفترچه و ژورنال معاملات شخصی (Trade Journal)",
+                                    color = TextPrimary,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.5.sp
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(AmberGold.copy(alpha = 0.2f))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text("جدید ⭐️", color = AmberGold, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            Text(
+                                text = "ثبت دستی تریدها، الصاق اسکرین‌شات چارت، تحلیل وین‌ریت و سودآوری",
+                                color = TextMuted,
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = "ورود به ژورنال",
+                        tint = AmberGold,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
+
+        // 3.5. 3 Sections Educational Encyclopedia Banner (6, 36, 67 sections)
+        item {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .clickable { onOpenArticles() }
+                    .testTag("open_encyclopedia_banner_card"),
+                colors = CardDefaults.cardColors(containerColor = SlateDark900),
+                border = androidx.compose.foundation.BorderStroke(1.dp, CyanGlow.copy(alpha = 0.5f))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(CyanGlow.copy(alpha = 0.15f))
+                                .border(1.dp, CyanGlow, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Book,
+                                contentDescription = null,
+                                tint = CyanGlow,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "دانشنامه جامع ۳ گانه (۱۰۹ سرفصل مرجع)",
+                                    color = TextPrimary,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.5.sp
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(CyanGlow.copy(alpha = 0.2f))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text("۳ بخش کامل", color = CyanNeon, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            Text(
+                                text = "۶ قانون طلایی بقا • ۳۶ الگوی کندل‌استیک • ۶۷ اصطلاح تخصصی و فرمول",
+                                color = TextMuted,
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = "ورود به دانشنامه",
+                        tint = CyanGlow,
                         modifier = Modifier.size(18.dp)
                     )
                 }

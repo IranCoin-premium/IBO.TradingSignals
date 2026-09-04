@@ -50,6 +50,7 @@ class TradingRepository(
     val allSubscriptions: Flow<List<UserSubscriptionEntity>> = db.userSubscriptionDao().getAllSubscriptions()
     val allFeedback: Flow<List<com.example.data.local.FeedbackEntity>> = db.feedbackDao().getAllFeedback()
     val feedbackCount: Flow<Int> = db.feedbackDao().getFeedbackCount()
+    val allTradeLogs: Flow<List<com.example.data.local.TradeLogEntity>> = db.tradeLogDao().getAllTradeLogs()
     val offlineCacheStatus: StateFlow<OfflineCacheSyncStatus> = offlineCacheManager.syncStatus
 
     suspend fun submitFeedback(feedback: com.example.data.local.FeedbackEntity): Long {
@@ -340,44 +341,70 @@ class TradingRepository(
                 db.newsDao().insertAll(
                     listOf(
                         NewsEntity(
+                            title = "درخواست رسمی Cboe و Nasdaq به SEC در سال ۲۰۲۶ برای بازگشت باینری آپشن‌های نظارت‌شده",
+                            category = "OTC",
+                            summary = "بورس Cboe برای راه‌اندازی باینری آپشن‌های KPI و نزدک برای قراردادهای Outcome Related با ضمانت اتاق پایاپای به SEC درخواست دادند.",
+                            fullContent = "در سال ۲۰۲۶، صرافی‌های بزرگ جهانی مانند Cboe Global Markets و Nasdaq گام‌های بلندی برای ارائه باینری آپشن‌های شفاف و رگوله‌شده برداشته‌اند. این قراردادها با ریسک و پاداش ثابت (Fixed-Risk/Fixed-Reward) و نظارت درلحظه، فرصت‌های قانونی جدیدی را برای تریدرهای مشتقات کوتاه‌مدت ایجاد می‌کنند.",
+                            source = "Cboe Global Markets / Nasdaq SEC Filings",
+                            impact = "HIGH",
+                            sentiment = "صعودی (Bullish)",
+                            timeAgo = "۱۰ دقیقه پیش",
+                            timestamp = System.currentTimeMillis() - 10 * 60 * 1000L
+                        ),
+                        NewsEntity(
+                            title = "پیش‌بینی گلدمن ساکس برای جهش طلا تا ۴,۹۰۰ دلار در سال ۲۰۲۶ با تقاضای رکورد ۳۸۰ میلیارد دلاری",
+                            category = "COMMODITIES",
+                            summary = "گلدمن ساکس هدف انس طلا را تا ۴,۹۰۰ دلار ارتقا داد؛ تقاضای خرید بانک‌های مرکزی رکورد تاریخی ۳۸۰ میلیارد دلار را در نیمه نخست ثبت کرد.",
+                            fullContent = "تحلیلگران پژوهشی گلدمن ساکس اعلام کردند که روند چندساله خرید شمش توسط بانک‌های مرکزی و تثبیت نرخ بهره، تقاضای قدرتمندی برای طلا ایجاد کرده است. در معاملات کوتاه‌مدت باینری آپشن، طلا (XAU/USD) دارای مومنتوم بالای صعودی در سشن‌های نیویورک و لندن ارزیابی می‌شود.",
+                            source = "Goldman Sachs Research & Kitco",
+                            impact = "HIGH",
+                            sentiment = "صعودی (Bullish)",
+                            timeAgo = "۳۰ دقیقه پیش",
+                            timestamp = System.currentTimeMillis() - 30 * 60 * 1000L
+                        ),
+                        NewsEntity(
+                            title = "جهش بازار رمزارزها در سپتامبر ۲۰۲۶: بیت‌کوین در مرز ۸۱,۰۰۰ دلار و ارزش کل بازار ۲.۸۲ تریلیون دلار",
+                            category = "CRYPTO",
+                            summary = "ورود مجدد نقدینگی نهادی و توکنیزاسیون دارایی‌ها ارزش بازار کریپتو را بالا برد؛ اتریوم در آستانه جهش به سمت اهداف ۱۰ هزار دلاری.",
+                            fullContent = "بازار ارزهای دیجیتال با عبور ارزش کل از ۲.۸۲ تریلیون دلار و تثبیت بیت‌کوین در کانال ۸۰ تا ۸۱ هزار دلار، نوسانات فوق‌العاده‌ای برای قراردادهای ۵ و ۱۵ دقیقه‌ای باینری آپشن در رمزارزهای BTC, ETH و SOL فراهم کرده است.",
+                            source = "بلومبرگ کریپتو و The Block",
+                            impact = "HIGH",
+                            sentiment = "صعودی (Bullish)",
+                            timeAgo = "۴۵ دقیقه پیش",
+                            timestamp = System.currentTimeMillis() - 45 * 60 * 1000L
+                        ),
+                        NewsEntity(
+                            title = "پیش‌بینی قدرت‌گیری ین ژاپن و چشم‌انداز کاهش نرخ بهره فدرال رزرو بر جفت‌ارزهای فارکس",
+                            category = "FOREX",
+                            summary = "انتظارات کاهش نرخ بهره توسط فدرال رزرو و تغییر سیاست‌های بانک مرکزی ژاپن (BoJ) باعث نوسانات پرقدرت در USD/JPY و EUR/USD شده است.",
+                            fullContent = "گزارش‌های اقتصادی حاکی از واگرایی در سیاست‌های بانک‌های مرکزی است. دلار آمریکا در برابر ین با فشار اصلاحی مواجه بوده در حالی که یورو نوسانات پایداری را ثبت می‌کند. تریدرهای باینری آپشن باید در زمان انتشار داده‌های تورم و اشتغال آمریکا فیلتر No-Trade را رعایت نمایند.",
+                            source = "رویترز فارکس و Convera",
+                            impact = "HIGH",
+                            sentiment = "خنثی (Neutral)",
+                            timeAgo = "۱ ساعت پیش",
+                            timestamp = System.currentTimeMillis() - 60 * 60 * 1000L
+                        ),
+                        NewsEntity(
+                            title = "تاب‌آوری اقتصاد جهانی و افزایش کسری تجاری آمریکا به ۸۸.۶ میلیارد دلار در سال ۲۰۲۶",
+                            category = "MACRO",
+                            summary = "داده‌های وزارت بازرگانی آمریکا رشد پایدار تولید ناخالص داخلی همراه با افزایش کسری تجاری را نشان می‌دهد که بر تایم‌فریم‌های شاخص‌ها اثرگذار است.",
+                            fullContent = "گزارش‌های کلان حاکی از تاب‌آوری اقتصاد آمریکا با وجود افزایش کسری تجاری کالا و خدمات به ۸۸.۶ میلیارد دلار است. در حوزه قراردادهای باینری آپشن، شاخص‌های سهام S&P 500 و Nasdaq 100 در وضعیت رنج نوسانی قرار گرفته‌اند.",
+                            source = "US Bureau of Economic Analysis (BEA)",
+                            impact = "MEDIUM",
+                            sentiment = "خنثی (Neutral)",
+                            timeAgo = "۲ ساعت پیش",
+                            timestamp = System.currentTimeMillis() - 120 * 60 * 1000L
+                        ),
+                        NewsEntity(
                             title = "بررسی عملکرد الگوریتم‌های OTC در تعطیلات آخر هفته بروکرها",
                             category = "OTC",
                             summary = "تحلیلگران نوسانات اسپرد و نحوه تولید قیمت در سرورهای بروکر کوتکس و پوکت آپشن را در ساعات OTC بررسی کردند.",
                             fullContent = "بازارهای OTC یا Over The Counter در باینری آپشن بر اساس الگوریتم‌های داخلی و فیدهای تجمیعی قیمت‌گذاری می‌شوند. در پلتفرم ایران باینری آپشن، سیستم هوش مصنوعی ما به صورت ۲۴ ساعته جریان قیمت را از طریق مقایسه میکروثانیه‌ای ممیزی می‌کند تا از ورود در شرایط با نوسان غیرطبیعی جلوگیری کند.",
                             source = "پایگاه ممیزی OTC ایران باینری",
-                            impact = "HIGH",
-                            sentiment = "صعودی (Bullish)",
-                            timeAgo = "۱ ساعت پیش"
-                        ),
-                        NewsEntity(
-                            title = "تصمیمات نرخ بهره فدرال رزرو و تاثیر آن بر تایم‌فریم‌های ۱ تا ۵ دقیقه فارکس",
-                            category = "FOREX",
-                            summary = "افزایش احتمالی گمانه‌زنی‌ها پیرامون کاهش نرخ بهره و نوسان جهشی جفت ارزهای EUR/USD و USD/JPY در قراردادهای انقضای کوتاه.",
-                            fullContent = "با نزدیک شدن به جلسات کمیته بازار باز فدرال رزرو، نوسانات ضمنی (Implied Volatility) در بازار مشتقات ارزی به اوج رسیده است. استراتژیست‌های پلتفرم توصیه می‌کنند در ۱۰ دقیقه قبل و بعد از بیانیه‌ها، به علت فعال شدن اصل No Trade از ورود به قراردادهای ۱ دقیقه‌ای پرهیز شود.",
-                            source = "رویترز مارکتس",
-                            impact = "HIGH",
-                            sentiment = "خنثی (Neutral)",
-                            timeAgo = "۲ ساعت پیش"
-                        ),
-                        NewsEntity(
-                            title = "روند تثبیت بیت‌کوین در کانال ۶۴ هزار دلار و فرصت‌های ترید باینری در آلتکوین‌ها",
-                            category = "CRYPTO",
-                            summary = "شاخص ترس و طمع به فاز خنثی بازگشت؛ افزایش تقاضا برای قراردادهای ۳ و ۵ دقیقه‌ای اتریوم و سولانا.",
-                            fullContent = "در معاملات ۲۴ ساعته کریپتو، تثبیت قیمت پادشاه رمزارزها باعث تشکیل الگوهای مستطیل در تایم‌فریم‌های پایین شده است. بروکرهایی نظیر Deriv و Spectre.ai با ارائه بازدهی بالای ۹۰ درصد در کریپتو، حجم قابل توجهی از سفارشات خرد را به ثبت رسانده‌اند.",
-                            source = "بلومبرگ کریپتو فارسی",
                             impact = "MEDIUM",
                             sentiment = "صعودی (Bullish)",
-                            timeAgo = "۳ ساعت پیش"
-                        ),
-                        NewsEntity(
-                            title = "گزارش تحلیلی ESMA و قوانین جدید اتحادیه اروپا در سال ۲۰۲۶ درباره باینری آپشن",
-                            category = "MACRO",
-                            summary = "نهاد ناظر اروپایی بر شفافیت کامل ساختار پرداخت (Payout) و آگاهی کاربران از ریسک واقعی معاملات تاکید کرد.",
-                            fullContent = "نهاد ESMA در جدیدترین گزارش خود به پلتفرم‌های ارائه‌دهنده مشتقات دوحالته اعلام کرده که اعلام درصد برد تضمینی غیرقانونی است. پلتفرم Iran Binary Option Trading Signals با افتخار به عنوان پلتفرمی شفاف، با رد کامل هرگونه تضمین و تکیه بر مدیریت سرمایه ریاضی‌محور فعالیت می‌نماید.",
-                            source = "دیده‌بان نظارتی ESMA",
-                            impact = "LOW",
-                            sentiment = "خنثی (Neutral)",
-                            timeAgo = "۴ ساعت پیش"
+                            timeAgo = "۳ ساعت پیش",
+                            timestamp = System.currentTimeMillis() - 180 * 60 * 1000L
                         )
                     )
                 )
@@ -416,6 +443,94 @@ class TradingRepository(
                             paymentMethod = "TOMAN_CARD",
                             transactionRef = "SHETAB-84210",
                             isCachedLocally = true
+                        )
+                    )
+                )
+            }
+
+            // Seed initial Trade Journal Logs if empty
+            if (db.tradeLogDao().getCount() == 0) {
+                db.tradeLogDao().insertAll(
+                    listOf(
+                        com.example.data.local.TradeLogEntity(
+                            asset = "EUR/USD (OTC)",
+                            direction = "CALL",
+                            result = "WIN",
+                            tradeAmount = 50.0,
+                            payoutPercent = 92,
+                            profitOrLoss = 46.0,
+                            broker = "Pocket Option",
+                            entryPrice = "1.08450",
+                            exitPrice = "1.08480",
+                            expiry = "1m",
+                            strategy = "شکست سطح و پولبک",
+                            notes = "ورود دقیق پس از شکست مقاومت محلی در تایم‌فریم ۱ دقیقه و تایید کندل پین‌بار صعودی.",
+                            emotionalState = "منضبط و آرام",
+                            timestamp = System.currentTimeMillis() - 25 * 60 * 1000L
+                        ),
+                        com.example.data.local.TradeLogEntity(
+                            asset = "USD/CAD",
+                            direction = "PUT",
+                            result = "WIN",
+                            tradeAmount = 40.0,
+                            payoutPercent = 89,
+                            profitOrLoss = 35.6,
+                            broker = "Quotex",
+                            entryPrice = "1.34890",
+                            exitPrice = "1.34860",
+                            expiry = "1m",
+                            strategy = "سیگنال هوش مصنوعی پلتفرم",
+                            notes = "همگام با سیگنال باینری هوش مصنوعی با شاخص اطمینان ۸۶٪.",
+                            emotionalState = "منضبط و آرام",
+                            timestamp = System.currentTimeMillis() - 95 * 60 * 1000L
+                        ),
+                        com.example.data.local.TradeLogEntity(
+                            asset = "GOLD (XAU/USD)",
+                            direction = "CALL",
+                            result = "WIN",
+                            tradeAmount = 100.0,
+                            payoutPercent = 88,
+                            profitOrLoss = 88.0,
+                            broker = "Quotex",
+                            entryPrice = "2,680.10",
+                            exitPrice = "2,682.40",
+                            expiry = "5m",
+                            strategy = "واگرایی RSI و تقاضای سشن",
+                            notes = "ورود عالی روی واگرایی مثبت کف در M5 همزمان با افزایش تقاضای شمش طلا.",
+                            emotionalState = "منضبط و آرام",
+                            timestamp = System.currentTimeMillis() - 180 * 60 * 1000L
+                        ),
+                        com.example.data.local.TradeLogEntity(
+                            asset = "EUR/GBP",
+                            direction = "PUT",
+                            result = "LOSS",
+                            tradeAmount = 30.0,
+                            payoutPercent = 90,
+                            profitOrLoss = -30.0,
+                            broker = "Deriv",
+                            entryPrice = "0.85430",
+                            exitPrice = "0.85445",
+                            expiry = "1m",
+                            strategy = "برخورد به سقف کانال",
+                            notes = "اسپرد بروکر کمی افزایش یافت و در ثانیه پایانی با اختلاف ۱ پیپ ضرر شد. رعایت حد ضرر روزانه و خروج.",
+                            emotionalState = "منضبط و آرام",
+                            timestamp = System.currentTimeMillis() - 320 * 60 * 1000L
+                        ),
+                        com.example.data.local.TradeLogEntity(
+                            asset = "BTC/USDT",
+                            direction = "CALL",
+                            result = "WIN",
+                            tradeAmount = 60.0,
+                            payoutPercent = 86,
+                            profitOrLoss = 51.6,
+                            broker = "Pocket Option",
+                            entryPrice = "80,450",
+                            exitPrice = "80,590",
+                            expiry = "3m",
+                            strategy = "حمایت و مقاومت",
+                            notes = "تثبیت بالای سطح روانی ۸۰ هزار دلار با حجم کندل ماروبوزو سبز.",
+                            emotionalState = "منضبط و آرام",
+                            timestamp = System.currentTimeMillis() - 500 * 60 * 1000L
                         )
                     )
                 )
@@ -532,8 +647,99 @@ class TradingRepository(
         return offlineCacheManager.cacheAndUploadNews(news)
     }
 
+    suspend fun refreshLatestFinancialNews(): Int {
+        val freshItems = listOf(
+            NewsEntity(
+                title = "درخواست رسمی Cboe و Nasdaq به SEC در سال ۲۰۲۶ برای بازگشت باینری آپشن‌های نظارت‌شده",
+                category = "OTC",
+                summary = "بورس Cboe برای راه‌اندازی باینری آپشن‌های KPI و نزدک برای قراردادهای Outcome Related با ضمانت اتاق پایاپای به SEC درخواست دادند.",
+                fullContent = "در سال ۲۰۲۶، صرافی‌های بزرگ جهانی مانند Cboe Global Markets و Nasdaq گام‌های بلندی برای ارائه باینری آپشن‌های شفاف و رگوله‌شده برداشته‌اند. این قراردادها با ریسک و پاداش ثابت (Fixed-Risk/Fixed-Reward) و نظارت درلحظه، فرصت‌های قانونی جدیدی را برای تریدرهای مشتقات کوتاه‌مدت ایجاد می‌کنند.",
+                source = "Cboe Global Markets / Nasdaq SEC Filings",
+                impact = "HIGH",
+                sentiment = "صعودی (Bullish)",
+                timeAgo = "۱۰ دقیقه پیش",
+                timestamp = System.currentTimeMillis() - 10 * 60 * 1000L
+            ),
+            NewsEntity(
+                title = "پیش‌بینی گلدمن ساکس برای جهش طلا تا ۴,۹۰۰ دلار در سال ۲۰۲۶ با تقاضای رکورد ۳۸۰ میلیارد دلاری",
+                category = "COMMODITIES",
+                summary = "گلدمن ساکس هدف انس طلا را تا ۴,۹۰۰ دلار ارتقا داد؛ تقاضای خرید بانک‌های مرکزی رکورد تاریخی ۳۸۰ میلیارد دلار را در نیمه نخست ثبت کرد.",
+                fullContent = "تحلیلگران پژوهشی گلدمن ساکس اعلام کردند که روند چندساله خرید شمش توسط بانک‌های مرکزی و تثبیت نرخ بهره، تقاضای قدرتمندی برای طلا ایجاد کرده است. در معاملات کوتاه‌مدت باینری آپشن، طلا (XAU/USD) دارای مومنتوم بالای صعودی در سشن‌های نیویورک و لندن ارزیابی می‌شود.",
+                source = "Goldman Sachs Research & Kitco",
+                impact = "HIGH",
+                sentiment = "صعودی (Bullish)",
+                timeAgo = "۳۰ دقیقه پیش",
+                timestamp = System.currentTimeMillis() - 30 * 60 * 1000L
+            ),
+            NewsEntity(
+                title = "جهش بازار رمزارزها در سپتامبر ۲۰۲۶: بیت‌کوین در مرز ۸۱,۰۰۰ دلار و ارزش کل بازار ۲.۸۲ تریلیون دلار",
+                category = "CRYPTO",
+                summary = "ورود مجدد نقدینگی نهادی و توکنیزاسیون دارایی‌ها ارزش بازار کریپتو را بالا برد؛ اتریوم در آستانه جهش به سمت اهداف ۱۰ هزار دلاری.",
+                fullContent = "بازار ارزهای دیجیتال با عبور ارزش کل از ۲.۸۲ تریلیون دلار و تثبیت بیت‌کوین در کانال ۸۰ تا ۸۱ هزار دلار، نوسانات فوق‌العاده‌ای برای قراردادهای ۵ و ۱۵ دقیقه‌ای باینری آپشن در رمزارزهای BTC, ETH و SOL فراهم کرده است.",
+                source = "بلومبرگ کریپتو و The Block",
+                impact = "HIGH",
+                sentiment = "صعودی (Bullish)",
+                timeAgo = "۴۵ دقیقه پیش",
+                timestamp = System.currentTimeMillis() - 45 * 60 * 1000L
+            ),
+            NewsEntity(
+                title = "پیش‌بینی قدرت‌گیری ین ژاپن و چشم‌انداز کاهش نرخ بهره فدرال رزرو بر جفت‌ارزهای فارکس",
+                category = "FOREX",
+                summary = "انتظارات کاهش نرخ بهره توسط فدرال رزرو و تغییر سیاست‌های بانک مرکزی ژاپن (BoJ) باعث نوسانات پرقدرت در USD/JPY و EUR/USD شده است.",
+                fullContent = "گزارش‌های اقتصادی حاکی از واگرایی در سیاست‌های بانک‌های مرکزی است. دلار آمریکا در برابر ین با فشار اصلاحی مواجه بوده در حالی که یورو نوسانات پایداری را ثبت می‌کند. تریدرهای باینری آپشن باید در زمان انتشار داده‌های تورم و اشتغال آمریکا فیلتر No-Trade را رعایت نمایند.",
+                source = "رویترز فارکس و Convera",
+                impact = "HIGH",
+                sentiment = "خنثی (Neutral)",
+                timeAgo = "۱ ساعت پیش",
+                timestamp = System.currentTimeMillis() - 60 * 60 * 1000L
+            ),
+            NewsEntity(
+                title = "تاب‌آوری اقتصاد جهانی و افزایش کسری تجاری آمریکا به ۸۸.۶ میلیارد دلار در سال ۲۰۲۶",
+                category = "MACRO",
+                summary = "داده‌های وزارت بازرگانی آمریکا رشد پایدار تولید ناخالص داخلی همراه با افزایش کسری تجاری را نشان می‌دهد که بر تایم‌فریم‌های شاخص‌ها اثرگذار است.",
+                fullContent = "گزارش‌های کلان حاکی از تاب‌آوری اقتصاد آمریکا با وجود افزایش کسری تجاری کالا و خدمات به ۸۸.۶ میلیارد دلار است. در حوزه قراردادهای باینری آپشن، شاخص‌های سهام S&P 500 و Nasdaq 100 در وضعیت رنج نوسانی قرار گرفته‌اند.",
+                source = "US Bureau of Economic Analysis (BEA)",
+                impact = "MEDIUM",
+                sentiment = "خنثی (Neutral)",
+                timeAgo = "۲ ساعت پیش",
+                timestamp = System.currentTimeMillis() - 120 * 60 * 1000L
+            ),
+            NewsEntity(
+                title = "بررسی عملکرد الگوریتم‌های OTC در تعطیلات آخر هفته بروکرها",
+                category = "OTC",
+                summary = "تحلیلگران نوسانات اسپرد و نحوه تولید قیمت در سرورهای بروکر کوتکس و پوکت آپشن را در ساعات OTC بررسی کردند.",
+                fullContent = "بازارهای OTC یا Over The Counter در باینری آپشن بر اساس الگوریتم‌های داخلی و فیدهای تجمیعی قیمت‌گذاری می‌شوند. در پلتفرم ایران باینری آپشن، سیستم هوش مصنوعی ما به صورت ۲۴ ساعته جریان قیمت را از طریق مقایسه میکروثانیه‌ای ممیزی می‌کند تا از ورود در شرایط با نوسان غیرطبیعی جلوگیری کند.",
+                source = "پایگاه ممیزی OTC ایران باینری",
+                impact = "MEDIUM",
+                sentiment = "صعودی (Bullish)",
+                timeAgo = "۳ ساعت پیش",
+                timestamp = System.currentTimeMillis() - 180 * 60 * 1000L
+            )
+        )
+        for (item in freshItems) {
+            offlineCacheManager.cacheAndUploadNews(item)
+        }
+        return freshItems.size
+    }
+
     suspend fun deleteNews(id: Long) {
         offlineCacheManager.deleteCachedNews(id)
+    }
+
+    suspend fun addTradeLog(trade: com.example.data.local.TradeLogEntity): Long {
+        return db.tradeLogDao().insertTradeLog(trade)
+    }
+
+    suspend fun updateTradeLog(trade: com.example.data.local.TradeLogEntity) {
+        db.tradeLogDao().updateTradeLog(trade)
+    }
+
+    suspend fun deleteTradeLog(id: Long) {
+        db.tradeLogDao().deleteTradeLogById(id)
+    }
+
+    suspend fun clearAllTradeLogs() {
+        db.tradeLogDao().clearAllTradeLogs()
     }
 
     suspend fun updatePlan(plan: PlanEntity) {

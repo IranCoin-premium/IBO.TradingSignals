@@ -1,6 +1,10 @@
 package com.example.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -22,25 +26,39 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.TrendingDown
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.filled.AutoGraph
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Category
-import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Help
-import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.ShowChart
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRowDefaults
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -49,9 +67,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.model.EncyclopediaItem
+import com.example.data.model.EncyclopediaRepository
 import com.example.ui.theme.AmberGold
 import com.example.ui.theme.CardBorder
 import com.example.ui.theme.CardSurface
@@ -69,316 +90,674 @@ import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 
-data class ArticleSection(
-    val id: String,
-    val title: String,
-    val category: String,
-    val summary: String,
-    val content: String,
-    val tags: List<String>
-)
-
 @Composable
-fun ArticleGuideScreen() {
+fun ArticleGuideScreen(
+    onBack: (() -> Unit)? = null
+) {
+    var selectedTabIndex by remember { mutableIntStateOf(0) }
     var searchQuery by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf("ALL") }
-    var expandedSectionId by remember { mutableStateOf<String?>("1") }
+    var selectedCategoryFilter by remember { mutableStateOf("ALL") }
+    var expandedItemId by remember { mutableStateOf<String?>(null) }
 
-    val sections = remember {
-        listOf(
-            ArticleSection(
-                id = "1",
-                title = "۱. باینری آپشن چیست و چگونه کار می‌کند؟",
-                category = "مبانی",
-                summary = "قراردادهای نتیجه‌محور دوحالته (Binary) بر اساس پیش‌بینی جهت قیمت تا زمان مشخص (Expiry).",
-                content = "قراردادهای باینری آپشن (Binary Options) خانواده‌ای از مشتقات مالی هستند که در آن‌ها نتیجه معامله صرفاً به دو حالت صفر یا یک (برد یا باخت) وابسته است.\n\nدر ساده‌ترین تعریف، معامله‌گر پیش‌بینی می‌کند که آیا دارایی مورد نظر (مانند EUR/USD یا BTC) در زمان سررسید (مثلاً ۶۰ ثانیه بعد) بالاتر از قیمت ورود خواهد بود یا پایین‌تر.\n\nدر صورت صحت پیش‌بینی، مبلغی بین ۷۰ تا ۹۸ درصد سود خالص (Payout) پرداخت می‌شود؛ در صورت عدم تحقق، مبلغ در معرض ریسک از دست می‌رود. در ایران باینری آپشن، سیگنال‌ها نه بر اساس حدس و گمان، بلکه پس از پردازش رژیم بازار و مدیریت ریاضی ریسک منتشر می‌شوند.",
-                tags = listOf("Binary Options", "Call & Put", "Expiry", "Payout")
-            ),
-            ArticleSection(
-                id = "2",
-                title = "۲. فرمول‌های ریاضی و نرخ برد سربه‌سر (Break-even Win Rate)",
-                category = "ریاضیات",
-                summary = "محاسبه حداقل نرخ برد لازم L/(P+L) و ارزش امیدریاضی Expected Value (EV).",
-                content = "یکی از خطاهای مرگبار معامله‌گران خرد، عدم درک ریاضیات بازدهی باینری آپشن است. اگر پرداخت بروکر P و زیان L باشد، حداقل نرخ برد سربه‌سر طبق رابطه زیر محاسبه می‌شود:\n\nBreak-even Win Rate = L / (P + L)\n\nبه عنوان مثال اگر بروکر کوتکس یا پوکت آپشن بازدهی 92% (P=0.92) بدهد، حداقل نرخ برد شما برای صفر شدن زیان برابر 52.08% خواهد بود.\n\nهمچنین فرمول ارزش امیدریاضی معامله:\nEV = (p × W) - ((1 - p) × L)\n\nدر پلتفرم Iran Binary Option Trading Signals، تنها سیگنال‌هایی صادر می‌شوند که ارزش امیدریاضی خالص آن‌ها (Net Edge) پس از کسر اسپرد و تاخیر مثبت باشد.",
-                tags = listOf("Break-even", "EV Formula", "Expected Value", "Net Edge")
-            ),
-            ArticleSection(
-                id = "3",
-                title = "۳. رژیم‌های بازار (Market Regimes) و شاخص‌های ATR و بولینگر",
-                category = "تحلیل تکنیکال",
-                summary = "تشخیص فازهای روند، رنج، شکست‌های فیک (Fake Breakout) و فشردگی قیمت.",
-                content = "بازار همیشه رونددار نیست! معامله در فاز رنج با استراتژی روندی فاجعه‌بار است. پلتفرم ایران باینری ۵ رژیم اصلی را تفکیک می‌کند:\n\n۱. Trend (روند پرقدرت صعودی/نزولی): مناسب برای قراردادهای ادامه‌دهنده Call/Put.\n۲. Range (کانال نوسانی): مناسب برای معکوس شدن از کف و سقف باندها.\n۳. Breakout (شکست واقعی سطح): تایید حجم و تثبیت بالای مقاومت.\n۴. Fake Breakout (شکست جعلی): خروج مقطعی و بازگشت سریع به داخل کانال.\n۵. Compression (فشردگی نوسان): هشدار آماده‌باش برای انفجار قیمت.\n\nشاخص دامنه واقعی میانگین (ATR) برای تشخیص نویز در تایم‌فریم ۱ تا ۵ دقیقه به کار گرفته می‌شود.",
-                tags = listOf("Trend", "Range", "Breakout", "Bollinger Bands", "ATR")
-            ),
-            ArticleSection(
-                id = "4",
-                title = "۴. معماری سه‌گانه هوش مصنوعی پلتفرم (AI1, AI2, AI3)",
-                category = "هوش مصنوعی",
-                summary = "تقسیم وظایف میان استراتژیست، مدیر ریسک و ناظر حاکمیتی معاملات.",
-                content = "سامانه تصمیم‌یار ما مبتنی بر ۳ عامل مستقل هوش مصنوعی است تا از خطای انسانی و توهم مدل‌ها جلوگیری کند:\n\n🤖 عامل اول (AI1 Strategist & Regime Detector): وظیفه دارد داده‌های لحظه‌ای بازار را بخواند، ساختار سطوح و الگوها را بسنجد و در صورت مساعد بودن، سناریو ورود تدوین کند.\n\n🛡️ عامل دوم (AI2 Risk Architect): نقش محاسبه ریسک، اسپرد، اندازه معامله (Position Size) و ارزیابی اسلیپیج بروکرهای مختلف را بر عهده دارد.\n\n⚖️ عامل سوم (AI3 Trade Governor & Auditor): قدرت وتو (Veto) را در دست دارد. اگر کیفیت داده پایین باشد، نقدشوندگی مشکوک باشد یا بازار در آستانه خبر سنگین باشد، دستور قطعی NO TRADE را صادر می‌کند.",
-                tags = listOf("AI1 Strategist", "AI2 Risk Architect", "AI3 Governor", "Local LLM")
-            ),
-            ArticleSection(
-                id = "5",
-                title = "۵. فلسفه عدم معامله (NO TRADE) و خطرات مارتینگل",
-                category = "مدیریت ریسک",
-                summary = "چرا معامله نکردن در شرایط بد بهترین سود است؟ رد قطعی روش تخریبی Martingale.",
-                content = "بزرگ‌ترین دشمن معامله‌گران باینری، روش افزایش تصاعدی حجم پس از باخت یا به اصطلاح مارتینگل (Martingale) است. این روش در یک زنجیره چند باخت متوالی، حساب کاربر را به طور کامل صفر می‌کند.\n\nپلتفرم ایران باینری آپشن بر اصل «سرمایه محدود و قابل حفاظت» بنا شده است. یکی از مهم‌ترین خروجی‌های سیستم ما سیگنال NO TRADE است؛ یعنی بازاری که داده معتبر ندارد یا ریسک آن بالاست نباید ترید شود.",
-                tags = listOf("No Trade", "Martingale Danger", "Risk Management", "Capital Protection")
-            ),
-            ArticleSection(
-                id = "6",
-                title = "۶. بازارهای OTC و تفاوت با بورس‌های رسمی (Nadex و CME)",
-                category = "بروکری",
-                summary = "سازوکار قیمت‌گذاری Over The Counter در ایام تعطیلات و هشدارهای CFTC/SEC.",
-                content = "بازارهای فرابورس یا OTC در باینری آپشن امکان معامله در روزهای شنبه، یکشنبه و ساعات تعطیلی بانک‌ها را فراهم می‌سازند. این نرخ‌ها توسط الگوریتم‌های بروکرها تولید می‌شوند.\n\nدر مقابل، بورس‌های رسمی مانند Nadex در آمریکا و CME قراردادهای رویدادی (Event Contracts) را تحت نظارت CFTC ارائه می‌دهند. در اروپا نیز ESMA محدودیت‌های مشخصی برای حمایت از سرمایه‌گذاران خرد اعمال کرده است. پلتفرم ایران باینری آپشن بر شفافیت کامل و عدم اتکا به وعده‌های فریبنده تاکید دارد.",
-                tags = listOf("OTC Markets", "Nadex", "CME", "ESMA", "CFTC")
-            ),
-            ArticleSection(
-                id = "7",
-                title = "۷. راهنمای سئو (SEO) و موقعیت‌یابی جغرافیایی (GEO)",
-                category = "سئو و متادیتا",
-                summary = "کلمات کلیدی رسمی، ساختار اسکیما و بهینه‌سازی موتورهای جستجو.",
-                content = "کلیدواژه‌های اصلی پلتفرم:\n• باینری آپشن\n• Binary Options Trading Signals\n• ایران باینری آپشن\n• سیگنال فارکس و OTC\n• ربات تحلیلگر باینری آپشن\n• Pocket Option & Quotex Signals Iran\n\nتگ‌های ژئو: Iran, Persian Gulf, Middle East, Tehran, Global OTC.\nاین پلتفرم با رعایت کامل اصول استانداردهای سئو مدرن، معماری اطلاعات غنی و تولید محتوای تخصصی به معامله‌گران سراسر منطقه خدمات‌رسانی می‌کند.",
-                tags = listOf("SEO", "GEO Metadata", "Keywords", "Schema Org")
-            )
-        )
-    }
-
-    val categories = listOf(
-        "ALL" to "همه سرفصل‌ها",
-        "مبانی" to "مبانی باینری آپشن",
-        "ریاضیات" to "ریاضیات و فرمول‌ها",
-        "تحلیل تکنیکال" to "تحلیل و رژیم بازار",
-        "هوش مصنوعی" to "معماری هوش مصنوعی",
-        "مدیریت ریسک" to "مدیریت ریسک و No Trade",
-        "بروکری" to "بازارهای OTC و بروکرها",
-        "سئو و متادیتا" to "سئو و GEO"
+    val tabTitles = listOf(
+        "همه (۱۰۹ سرفصل)" to Icons.Default.Bookmark,
+        "بخش ۶ تایی (قوانین طلایی)" to Icons.Default.Shield,
+        "بخش ۳۶ تایی (کندل‌استیک)" to Icons.Default.ShowChart,
+        "بخش ۶۷ تایی (اصطلاحات و استراتژی)" to Icons.Default.AutoGraph
     )
 
-    val filtered = sections.filter { s ->
-        val catMatch = if (selectedCategory == "ALL") true else s.category == selectedCategory
-        val queryMatch = searchQuery.isBlank() || s.title.contains(searchQuery) || s.content.contains(searchQuery)
-        catMatch && queryMatch
+    // Filter items based on active tab
+    val baseList = remember(selectedTabIndex) {
+        when (selectedTabIndex) {
+            1 -> EncyclopediaRepository.sectionSixItems
+            2 -> EncyclopediaRepository.sectionThirtySixItems
+            3 -> EncyclopediaRepository.sectionSixtySevenItems
+            else -> EncyclopediaRepository.allItems
+        }
+    }
+
+    // Dynamic categories extracted from base list
+    val availableCategories = remember(baseList) {
+        listOf("ALL") + baseList.map { it.category }.distinct()
+    }
+
+    // Filtered list based on search and category
+    val filteredList by remember(baseList, searchQuery, selectedCategoryFilter) {
+        derivedStateOf {
+            baseList.filter { item ->
+                val matchesCategory = selectedCategoryFilter == "ALL" || item.category == selectedCategoryFilter
+                val matchesSearch = if (searchQuery.isBlank()) true else {
+                    val query = searchQuery.trim().lowercase()
+                    item.title.lowercase().contains(query) ||
+                            item.titleEn.lowercase().contains(query) ||
+                            item.summary.lowercase().contains(query) ||
+                            item.fullContent.lowercase().contains(query) ||
+                            item.practicalTip.lowercase().contains(query) ||
+                            item.tags.any { it.lowercase().contains(query) }
+                }
+                matchesCategory && matchesSearch
+            }
+        }
     }
 
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(SlateDark950),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+            .background(SlateDark950)
+            .testTag("article_guide_screen"),
+        contentPadding = PaddingValues(bottom = 90.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // Header
+        // 1. Header Banner
         item {
-            Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Book, contentDescription = null, tint = AmberGold, modifier = Modifier.size(22.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "دانشنامه جامع Iran Binary Option",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Black,
-                            fontSize = 17.sp
-                        ),
-                        color = TextPrimary
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(SlateDark900, SlateDark950)
+                        )
+                    )
+                    .padding(horizontal = 16.dp, vertical = 16.dp)
+            ) {
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (onBack != null) {
+                                IconButton(
+                                    onClick = onBack,
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(CircleShape)
+                                        .background(SlateDark800)
+                                        .testTag("article_back_button")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = "بازگشت",
+                                        tint = CyanGlow,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+                            }
+
+                            Column {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Psychology,
+                                        contentDescription = null,
+                                        tint = CyanGlow,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "دانشنامه جامع Iran Binary Option",
+                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Black),
+                                        color = TextPrimary
+                                    )
+                                }
+                                Text(
+                                    text = "مرجع کامل ۳ بخش طلایی: ۶ قانون بقا • ۳۶ الگوی کندل‌استیک • ۶۷ اصطلاح تخصصی",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = TextSecondary
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Quick Stats Ribbon
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        QuickStatCard(
+                            modifier = Modifier.weight(1f),
+                            title = "بخش ۶ تایی",
+                            count = "۶ اصل",
+                            subtitle = "قوانین مدیریت ریسک",
+                            accentColor = AmberGold,
+                            isSelected = selectedTabIndex == 1,
+                            onClick = { selectedTabIndex = 1 }
+                        )
+                        QuickStatCard(
+                            modifier = Modifier.weight(1f),
+                            title = "بخش ۳۶ تایی",
+                            count = "۳۶ الگو",
+                            subtitle = "کندل‌استیک و پرایس‌اکشن",
+                            accentColor = EmeraldNeon,
+                            isSelected = selectedTabIndex == 2,
+                            onClick = { selectedTabIndex = 2 }
+                        )
+                        QuickStatCard(
+                            modifier = Modifier.weight(1f),
+                            title = "بخش ۶۷ تایی",
+                            count = "۶۷ اصطلاح",
+                            subtitle = "فرمول، اندیکاتور و OTC",
+                            accentColor = CyanGlow,
+                            isSelected = selectedTabIndex == 3,
+                            onClick = { selectedTabIndex = 3 }
+                        )
+                    }
+                }
+            }
+        }
+
+        // 2. Tabs Bar
+        item {
+            ScrollableTabRow(
+                selectedTabIndex = selectedTabIndex,
+                containerColor = SlateDark900,
+                contentColor = CyanGlow,
+                edgePadding = 12.dp,
+                indicator = { tabPositions ->
+                    TabRowDefaults.SecondaryIndicator(
+                        Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
+                        color = CyanGlow,
+                        height = 3.dp
+                    )
+                },
+                divider = {}
+            ) {
+                tabTitles.forEachIndexed { index, pair ->
+                    Tab(
+                        selected = selectedTabIndex == index,
+                        onClick = {
+                            selectedTabIndex = index
+                            selectedCategoryFilter = "ALL"
+                        },
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = pair.second,
+                                    contentDescription = null,
+                                    tint = if (selectedTabIndex == index) CyanGlow else TextMuted,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = pair.first,
+                                    color = if (selectedTabIndex == index) TextPrimary else TextMuted,
+                                    fontWeight = if (selectedTabIndex == index) FontWeight.Bold else FontWeight.Normal,
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
                     )
                 }
-                Spacer(modifier = Modifier.height(4.dp))
+            }
+        }
+
+        // 3. Search & Filter Bar
+        item {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            ) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("article_search_field"),
+                    placeholder = {
+                        Text(
+                            "جستجو در عنوان، فرمول، الگو، اندیکاتور یا تگ...",
+                            color = TextMuted,
+                            fontSize = 12.sp
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "جستجو",
+                            tint = CyanGlow,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "پاک کردن",
+                                    tint = TextMuted,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = SlateDark900,
+                        unfocusedContainerColor = SlateDark900,
+                        focusedBorderColor = CyanGlow,
+                        unfocusedBorderColor = CardBorder,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    ),
+                    singleLine = true
+                )
+
+                if (availableCategories.size > 2) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(availableCategories) { cat ->
+                            val isSelected = selectedCategoryFilter == cat
+                            val label = if (cat == "ALL") "همه دسته‌ها" else cat
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(if (isSelected) CyanGlow.copy(alpha = 0.2f) else SlateDark900)
+                                    .border(
+                                        1.dp,
+                                        if (isSelected) CyanGlow else CardBorder,
+                                        RoundedCornerShape(20.dp)
+                                    )
+                                    .clickable { selectedCategoryFilter = cat }
+                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = label,
+                                    color = if (isSelected) CyanNeon else TextSecondary,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 4. Section Count Bar
+        item {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
-                    text = "مرجع ۱۶۰ سرفصلی آموزش باینری آپشن، بازارهای جهانی، OTC، هوش مصنوعی و سئو",
-                    style = MaterialTheme.typography.bodySmall.copy(lineHeight = 18.sp),
-                    color = TextSecondary
+                    text = "نمایش ${filteredList.size} سرفصل آموزشی معتبر",
+                    color = TextMuted,
+                    fontSize = 11.sp
+                )
+                if (searchQuery.isNotEmpty() || selectedCategoryFilter != "ALL") {
+                    Text(
+                        text = "پاک‌سازی فیلترها",
+                        color = AmberGold,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.clickable {
+                            searchQuery = ""
+                            selectedCategoryFilter = "ALL"
+                        }
+                    )
+                }
+            }
+        }
+
+        // 5. Items List
+        if (filteredList.isEmpty()) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Default.Category,
+                            contentDescription = null,
+                            tint = TextMuted,
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "سرفصلی با این مشخصات یافت نشد.",
+                            color = TextSecondary,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+            }
+        } else {
+            items(filteredList, key = { it.id }) { item ->
+                val isExpanded = expandedItemId == item.id
+                EncyclopediaCard(
+                    item = item,
+                    isExpanded = isExpanded,
+                    onToggleExpand = {
+                        expandedItemId = if (isExpanded) null else item.id
+                    }
                 )
             }
         }
+    }
+}
 
-        // Search Bar
-        item {
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                placeholder = { Text("جستجو در بین مقالات و سرفصل‌ها...", fontSize = 12.sp, color = TextSecondary) },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = CyanGlow) },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = CardSurface,
-                    unfocusedContainerColor = CardSurface,
-                    focusedBorderColor = EmeraldNeon,
-                    unfocusedBorderColor = CardBorder,
-                    focusedTextColor = TextPrimary,
-                    unfocusedTextColor = TextPrimary
-                ),
-                singleLine = true
+@Composable
+private fun QuickStatCard(
+    modifier: Modifier,
+    title: String,
+    count: String,
+    subtitle: String,
+    accentColor: Color,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (isSelected) accentColor.copy(alpha = 0.15f) else CardSurface)
+            .border(
+                1.dp,
+                if (isSelected) accentColor else CardBorder,
+                RoundedCornerShape(12.dp)
             )
+            .clickable { onClick() }
+            .padding(10.dp)
+    ) {
+        Column {
+            Text(title, color = TextMuted, fontSize = 9.5.sp)
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(count, color = accentColor, fontWeight = FontWeight.Black, fontSize = 14.sp)
+            Text(subtitle, color = TextSecondary, fontSize = 8.5.sp, maxLines = 1)
         }
+    }
+}
 
-        // Category Filter Ribbon
-        item {
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                items(categories) { (code, label) ->
-                    val isSelected = selectedCategory == code
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(if (isSelected) EmeraldDark else SlateDark900)
-                            .border(1.dp, if (isSelected) EmeraldNeon else CardBorder, RoundedCornerShape(12.dp))
-                            .clickable { selectedCategory = code }
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
-                    ) {
-                        Text(
-                            text = label,
-                            color = if (isSelected) EmeraldGlow else TextSecondary,
-                            fontSize = 11.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                        )
-                    }
-                }
-            }
-        }
+@Composable
+private fun EncyclopediaCard(
+    item: EncyclopediaItem,
+    isExpanded: Boolean,
+    onToggleExpand: () -> Unit
+) {
+    val accentColor = when (item.sectionType) {
+        "SECTION_6" -> AmberGold
+        "SECTION_36" -> EmeraldNeon
+        else -> CyanGlow
+    }
 
-        // Legal & Regulatory Notice Card
-        item {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(14.dp))
-                    .border(1.dp, CardBorder, RoundedCornerShape(14.dp)),
-                colors = CardDefaults.cardColors(containerColor = SlateDark900)
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .border(
+                1.dp,
+                if (isExpanded) accentColor.copy(alpha = 0.6f) else CardBorder,
+                RoundedCornerShape(14.dp)
+            )
+            .clickable { onToggleExpand() }
+            .testTag("encyclopedia_card_${item.id}"),
+        colors = CardDefaults.cardColors(containerColor = CardSurface)
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            // Header: Badges & Section Number
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.Top
+                // Section badge
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(accentColor.copy(alpha = 0.15f))
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
                 ) {
-                    Icon(Icons.Default.Shield, contentDescription = null, tint = AmberGold, modifier = Modifier.size(20.dp))
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column {
-                        Text(
-                            text = "یادداشت قانونی و سلب مسئولیت ریسک:",
-                            color = AmberGold,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 11.5.sp
-                        )
-                        Spacer(modifier = Modifier.height(3.dp))
-                        Text(
-                            text = "باینری آپشن محصولاتی با ریسک بالا هستند. هیچ سیستم تحلیلی نباید سود قطعی را تضمین نماید. Iran Binary Option صرفاً ابزار تصمیم‌یار چندلایه و آموزشی است.",
-                            color = TextSecondary,
-                            fontSize = 10.5.sp,
-                            lineHeight = 17.sp
-                        )
-                    }
+                    Text(
+                        text = item.sectionTitleBadge,
+                        color = accentColor,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
-            }
-        }
 
-        // Sections
-        items(filtered, key = { it.id }) { section ->
-            val isExpanded = expandedSectionId == section.id
-
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
-                    .clickable {
-                        expandedSectionId = if (isExpanded) null else section.id
-                    },
-                colors = CardDefaults.cardColors(containerColor = CardSurface),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Column(modifier = Modifier.padding(14.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Direction Badge (CALL / PUT / NEUTRAL)
+                    if (item.direction == "CALL") {
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(6.dp))
-                                .background(SlateDark800)
-                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                                .background(EmeraldDark.copy(alpha = 0.5f))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
-                            Text(section.category, color = CyanGlow, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.TrendingUp,
+                                    contentDescription = null,
+                                    tint = EmeraldNeon,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text("سیگنال CALL", color = EmeraldNeon, fontSize = 9.5.sp, fontWeight = FontWeight.Bold)
+                            }
                         }
-
-                        Icon(
-                            imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                            contentDescription = null,
-                            tint = TextSecondary,
-                            modifier = Modifier.size(20.dp)
-                        )
+                    } else if (item.direction == "PUT") {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(CrimsonGlow.copy(alpha = 0.15f))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.TrendingDown,
+                                    contentDescription = null,
+                                    tint = CrimsonGlow,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text("سیگنال PUT", color = CrimsonGlow, fontSize = 9.5.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    if (item.winRate.isNotBlank()) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(GoldGlow.copy(alpha = 0.15f))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "وین‌ریت: ${item.winRate}",
+                                color = GoldGlow,
+                                fontSize = 9.5.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
 
-                    Text(
-                        text = section.title,
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold, fontSize = 14.sp),
-                        color = TextPrimary
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Main Title
+            Text(
+                text = item.title,
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                color = TextPrimary,
+                fontSize = 13.5.sp
+            )
+
+            if (item.titleEn.isNotBlank()) {
+                Text(
+                    text = item.titleEn,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = CyanNeon.copy(alpha = 0.8f),
+                    fontSize = 11.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Summary
+            Text(
+                text = item.summary,
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary,
+                lineHeight = 18.sp,
+                fontSize = 11.5.sp
+            )
+
+            // Expandable Content
+            AnimatedVisibility(
+                visible = isExpanded,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                Column(modifier = Modifier.padding(top = 10.dp)) {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 8.dp),
+                        thickness = 0.5.dp,
+                        color = CardBorder
                     )
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                    // Full Content Section
+                    Row(verticalAlignment = Alignment.Top) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = CyanGlow,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Column {
+                            Text(
+                                text = "تحلیل جامع و سازوکار:",
+                                color = TextPrimary,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.5.sp
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = item.fullContent,
+                                color = TextSecondary,
+                                fontSize = 11.5.sp,
+                                lineHeight = 19.sp
+                            )
+                        }
+                    }
 
-                    Text(
-                        text = section.summary,
-                        style = MaterialTheme.typography.bodySmall.copy(lineHeight = 18.sp),
-                        color = TextSecondary
-                    )
-
-                    AnimatedVisibility(visible = isExpanded) {
-                        Column(modifier = Modifier.padding(top = 10.dp)) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(SlateDark900)
-                                    .padding(12.dp)
-                            ) {
-                                Text(
-                                    text = section.content,
-                                    style = MaterialTheme.typography.bodySmall.copy(
-                                        fontSize = 12.sp,
-                                        lineHeight = 22.sp
-                                    ),
-                                    color = TextPrimary
+                    if (item.practicalTip.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(SlateDark900)
+                                .border(1.dp, AmberGold.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                                .padding(10.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.Top) {
+                                Icon(
+                                    imageVector = Icons.Default.Lightbulb,
+                                    contentDescription = null,
+                                    tint = AmberGold,
+                                    modifier = Modifier.size(16.dp)
                                 )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Column {
+                                    Text(
+                                        text = "نکته طلایی و استراتژی اجرایی در بروکر:",
+                                        color = AmberGold,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = item.practicalTip,
+                                        color = TextPrimary,
+                                        fontSize = 11.sp,
+                                        lineHeight = 17.sp
+                                    )
+                                }
                             }
+                        }
+                    }
 
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            // Tags
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                section.tags.forEach { tag ->
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(6.dp))
-                                            .background(EmeraldDark.copy(alpha = 0.5f))
-                                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                                    ) {
-                                        Text(
-                                            text = "#$tag",
-                                            color = EmeraldGlow,
-                                            fontSize = 9.5.sp,
-                                            fontWeight = FontWeight.SemiBold
-                                        )
-                                    }
+                    // Tags
+                    if (item.tags.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            items(item.tags) { tag ->
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(SlateDark800)
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = "#$tag",
+                                        color = TextMuted,
+                                        fontSize = 9.sp
+                                    )
                                 }
                             }
                         }
                     }
                 }
             }
-        }
 
-        item {
-            Spacer(modifier = Modifier.height(70.dp))
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Expand / Collapse Footer Trigger
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(SlateDark800)
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = "دسته: ${item.category}",
+                        color = TextMuted,
+                        fontSize = 9.5.sp
+                    )
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable { onToggleExpand() }
+                ) {
+                    Text(
+                        text = if (isExpanded) "بستن جزئیات" else "مشاهده تحلیل کامل و استراتژی",
+                        color = accentColor,
+                        fontSize = 10.5.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(
+                        imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = null,
+                        tint = accentColor,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
         }
     }
 }

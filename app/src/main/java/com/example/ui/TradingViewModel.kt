@@ -5,6 +5,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.auth.FirebaseAuthService
 import com.example.data.local.NewsEntity
+import com.example.data.local.NotificationPreferencesRepository
+import com.example.data.local.NotificationSettings
 import com.example.data.local.PlanEntity
 import com.example.data.local.SignalEntity
 import com.example.data.local.UserEntity
@@ -22,6 +24,10 @@ import kotlinx.coroutines.launch
 class TradingViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = TradingRepository.getInstance(application)
     private val firebaseAuthService = FirebaseAuthService(application)
+    private val notificationPreferencesRepository = NotificationPreferencesRepository.getInstance(application)
+
+    val notificationSettings: StateFlow<NotificationSettings> = notificationPreferencesRepository.settingsFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), NotificationSettings())
 
     val signals: StateFlow<List<SignalEntity>> = repository.allSignals
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -58,6 +64,9 @@ class TradingViewModel(application: Application) : AndroidViewModel(application)
 
     val feedbackCount: StateFlow<Int> = repository.feedbackCount
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val tradeLogs: StateFlow<List<com.example.data.local.TradeLogEntity>> = repository.allTradeLogs
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val offlineCacheStatus: StateFlow<OfflineCacheSyncStatus> = repository.offlineCacheStatus
 
@@ -217,6 +226,41 @@ class TradingViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun refreshLatestFinancialNews(onComplete: (Int) -> Unit = {}) {
+        viewModelScope.launch {
+            val count = repository.refreshLatestFinancialNews()
+            onComplete(count)
+        }
+    }
+
+    fun addTradeLog(trade: com.example.data.local.TradeLogEntity, onComplete: () -> Unit = {}) {
+        viewModelScope.launch {
+            repository.addTradeLog(trade)
+            onComplete()
+        }
+    }
+
+    fun updateTradeLog(trade: com.example.data.local.TradeLogEntity, onComplete: () -> Unit = {}) {
+        viewModelScope.launch {
+            repository.updateTradeLog(trade)
+            onComplete()
+        }
+    }
+
+    fun deleteTradeLog(id: Long, onComplete: () -> Unit = {}) {
+        viewModelScope.launch {
+            repository.deleteTradeLog(id)
+            onComplete()
+        }
+    }
+
+    fun clearAllTradeLogs(onComplete: () -> Unit = {}) {
+        viewModelScope.launch {
+            repository.clearAllTradeLogs()
+            onComplete()
+        }
+    }
+
     fun submitFeedback(
         feedbackType: String,
         asset: String?,
@@ -270,6 +314,48 @@ class TradingViewModel(application: Application) : AndroidViewModel(application)
     fun deleteFeedback(id: Long) {
         viewModelScope.launch {
             repository.deleteFeedback(id)
+        }
+    }
+
+    fun toggleMasterNotifications(enabled: Boolean) {
+        viewModelScope.launch {
+            notificationPreferencesRepository.setMasterEnabled(enabled)
+        }
+    }
+
+    fun toggleCategoryNotification(category: String, enabled: Boolean) {
+        viewModelScope.launch {
+            notificationPreferencesRepository.setCategoryEnabled(category, enabled)
+        }
+    }
+
+    fun toggleHighAccuracyOnly(enabled: Boolean) {
+        viewModelScope.launch {
+            notificationPreferencesRepository.setHighAccuracyOnly(enabled)
+        }
+    }
+
+    fun toggleRiskWarnings(enabled: Boolean) {
+        viewModelScope.launch {
+            notificationPreferencesRepository.setRiskWarningsEnabled(enabled)
+        }
+    }
+
+    fun toggleSound(enabled: Boolean) {
+        viewModelScope.launch {
+            notificationPreferencesRepository.setSoundEnabled(enabled)
+        }
+    }
+
+    fun toggleVibration(enabled: Boolean) {
+        viewModelScope.launch {
+            notificationPreferencesRepository.setVibrationEnabled(enabled)
+        }
+    }
+
+    fun resetNotificationSettings() {
+        viewModelScope.launch {
+            notificationPreferencesRepository.resetToDefaults()
         }
     }
 
