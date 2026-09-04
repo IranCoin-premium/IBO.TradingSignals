@@ -91,6 +91,8 @@ class MainActivity : ComponentActivity() {
                     val staffList by viewModel.staffList.collectAsState()
                     val currentUser by viewModel.currentUser.collectAsState()
                     val userPlan by viewModel.userPlan.collectAsState()
+                    val subscriptions by viewModel.subscriptions.collectAsState()
+                    val offlineCacheStatus by viewModel.offlineCacheStatus.collectAsState()
 
                     var showSupportSheet by remember { mutableStateOf(false) }
                     var showAuthSheet by remember { mutableStateOf(false) }
@@ -199,6 +201,8 @@ class MainActivity : ComponentActivity() {
                                     SubscriptionScreen(
                                         plans = plans,
                                         currentUserPlan = userPlan,
+                                        subscriptions = subscriptions,
+                                        offlineCacheStatus = offlineCacheStatus,
                                         onBuyPlan = { plan ->
                                             viewModel.buyPlan(plan)
                                         }
@@ -225,6 +229,8 @@ class MainActivity : ComponentActivity() {
                                         plans = plans,
                                         newsList = newsList,
                                         staffList = staffList,
+                                        subscriptions = subscriptions,
+                                        offlineCacheStatus = offlineCacheStatus,
                                         onLogin = { email, pass ->
                                             viewModel.login(email, pass) { success, msg ->
                                                 Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
@@ -263,6 +269,10 @@ class MainActivity : ComponentActivity() {
                                         },
                                         onDeleteNews = { id ->
                                             viewModel.deleteNews(id)
+                                        },
+                                        onSyncCloud = {
+                                            viewModel.syncOfflineCache()
+                                            Toast.makeText(context, "درخواست همگام‌سازی ابری ارسال شد.", Toast.LENGTH_SHORT).show()
                                         },
                                         onRunAiAgent = { prompt ->
                                             viewModel.runAiAgent(prompt)

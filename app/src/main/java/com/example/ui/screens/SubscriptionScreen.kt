@@ -54,6 +54,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.local.PlanEntity
+import com.example.data.local.UserSubscriptionEntity
+import com.example.data.repository.OfflineCacheSyncStatus
 import com.example.ui.theme.AmberGold
 import com.example.ui.theme.CardBorder
 import com.example.ui.theme.CardSurface
@@ -74,6 +76,8 @@ import com.example.ui.theme.TextSecondary
 fun SubscriptionScreen(
     plans: List<PlanEntity>,
     currentUserPlan: String,
+    subscriptions: List<UserSubscriptionEntity> = emptyList(),
+    offlineCacheStatus: OfflineCacheSyncStatus? = null,
     onBuyPlan: (PlanEntity) -> Unit
 ) {
     var selectedPlanToBuy by remember { mutableStateOf<PlanEntity?>(null) }
@@ -174,6 +178,48 @@ fun SubscriptionScreen(
                             .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
                         Text("فعال", color = Color.Black, fontWeight = FontWeight.Black, fontSize = 11.sp)
+                    }
+                }
+            }
+        }
+
+        // Room Offline Storage & Cloud Sync Status Badge
+        item {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .border(1.dp, CardBorder, RoundedCornerShape(14.dp)),
+                colors = CardDefaults.cardColors(containerColor = SlateDark900)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(EmeraldDark),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Shield, contentDescription = null, tint = CyanNeon, modifier = Modifier.size(18.dp))
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "پشتیبانی آفلاین Room و همگام‌سازی ابری Firestore",
+                            color = EmeraldGlow,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.5.sp
+                        )
+                        Text(
+                            text = "اشتراک‌های شما و سیگنال‌های لایو به صورت آفلاین در دیتابیس دستگاه ذخیره می‌شوند.",
+                            color = TextSecondary,
+                            fontSize = 10.sp
+                        )
                     }
                 }
             }

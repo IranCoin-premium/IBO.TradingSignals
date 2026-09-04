@@ -10,9 +10,10 @@ import androidx.room.RoomDatabase
         SignalEntity::class,
         NewsEntity::class,
         PlanEntity::class,
-        UserEntity::class
+        UserEntity::class,
+        UserSubscriptionEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -20,6 +21,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun newsDao(): NewsDao
     abstract fun planDao(): PlanDao
     abstract fun userDao(): UserDao
+    abstract fun userSubscriptionDao(): UserSubscriptionDao
 
     companion object {
         @Volatile
@@ -31,7 +33,9 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "iran_binary_database.db"
-                ).build()
+                )
+                    .fallbackToDestructiveMigration()
+                    .build()
                 INSTANCE = instance
                 instance
             }

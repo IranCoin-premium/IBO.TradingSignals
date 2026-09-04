@@ -15,6 +15,15 @@ interface SignalDao {
     @Query("SELECT * FROM signals WHERE status = :status ORDER BY timestamp DESC")
     fun getSignalsByStatus(status: String): Flow<List<SignalEntity>>
 
+    @Query("SELECT * FROM signals WHERE status IN ('WON', 'LOST', 'NO_TRADE') ORDER BY timestamp DESC")
+    fun getHistoricalSignals(): Flow<List<SignalEntity>>
+
+    @Query("SELECT * FROM signals WHERE status = 'ACTIVE' ORDER BY timestamp DESC")
+    fun getActiveSignals(): Flow<List<SignalEntity>>
+
+    @Query("SELECT * FROM signals WHERE id = :id LIMIT 1")
+    suspend fun getSignalById(id: Long): SignalEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSignal(signal: SignalEntity): Long
 

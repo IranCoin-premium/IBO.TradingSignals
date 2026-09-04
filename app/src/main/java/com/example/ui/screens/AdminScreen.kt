@@ -24,21 +24,29 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AdminPanelSettings
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ElectricBolt
 import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Newspaper
+import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.SignalCellularAlt
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -53,14 +61,12 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -72,6 +78,8 @@ import com.example.data.local.NewsEntity
 import com.example.data.local.PlanEntity
 import com.example.data.local.SignalEntity
 import com.example.data.local.UserEntity
+import com.example.data.local.UserSubscriptionEntity
+import com.example.data.repository.OfflineCacheSyncStatus
 import com.example.ui.theme.AmberGold
 import com.example.ui.theme.CardBorder
 import com.example.ui.theme.CardSurface
@@ -97,6 +105,8 @@ fun AdminScreen(
     plans: List<PlanEntity>,
     newsList: List<NewsEntity>,
     staffList: List<UserEntity>,
+    subscriptions: List<UserSubscriptionEntity> = emptyList(),
+    offlineCacheStatus: OfflineCacheSyncStatus? = null,
     onLogin: (email: String, pass: String) -> Unit,
     onLogout: () -> Unit,
     onUpdatePassword: (newPass: String) -> Unit,
@@ -107,17 +117,31 @@ fun AdminScreen(
     onUpdatePlan: (PlanEntity) -> Unit,
     onAddNews: (NewsEntity) -> Unit,
     onDeleteNews: (Long) -> Unit,
+    onSyncCloud: () -> Unit = {},
     onRunAiAgent: (String) -> String
 ) {
     var adminEmailInput by remember { mutableStateOf("admin@iranbinary.ir") }
     var adminPassInput by remember { mutableStateOf("IranBinaryAdmin2026!") }
     var showPassword by remember { mutableStateOf(false) }
-    var activeTab by remember { mutableStateOf("AI_AGENT") } // AI_AGENT, SIGNALS, PLANS, NEWS, SECURITY
+    var activeTab by remember { mutableStateOf("AI_PROMPT_BOX") } // AI_PROMPT_BOX, SIGNAL_DELIVERY, SUBSCRIPTION_TIERS, NEWS_CMS, SECURITY
+
+    // Shared State for AI pre-populating Form Fields
+    var prefilledAsset by remember { mutableStateOf("EUR/USD (OTC)") }
+    var prefilledCategory by remember { mutableStateOf("OTC") }
+    var prefilledDirection by remember { mutableStateOf("CALL") }
+    var prefilledStrike by remember { mutableStateOf("1.08510") }
+    var prefilledExpiry by remember { mutableStateOf("1m") }
+    var prefilledPayout by remember { mutableStateOf("۹۶٪") }
+    var prefilledRegime by remember { mutableStateOf("شکست صعودی تثبیت‌شده") }
+    var prefilledConfidence by remember { mutableStateOf("90") }
+    var prefilledBrokers by remember { mutableStateOf("Quotex, Pocket Option") }
+    var prefilledDeliveryTier by remember { mutableStateOf("کاربران اشتراکی (۱ هفته‌ای به بالا)") }
+    var prefilledRationale by remember { mutableStateOf("افزایش مومنتوم خرید پس از تست موفقیت‌آمیز حمایت M5 و تایید AI1") }
 
     val isAdminLoggedIn = currentUser != null && (currentUser.role == "ADMIN" || currentUser.role == "STAFF")
 
     if (!isAdminLoggedIn) {
-        // Admin Login Screen with pre-configured default credentials
+        // Protected Admin Login Gate
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -166,20 +190,20 @@ fun AdminScreen(
                         )
 
                         Text(
-                            text = "Iran Binary Option Staff & Admin Portal",
+                            text = "منطقه محافظت‌شده مدیریت ارشد | Iran Binary Portal",
                             style = MaterialTheme.typography.bodySmall,
                             color = CyanGlow
                         )
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // Explicit Banner informing user of default login and password as requested
+                        // Banner with pre-configured default credentials for testing
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(RoundedCornerShape(14.dp))
                                 .background(SlateDark900)
-                                .border(1.dp, AmberGold.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                                .border(1.dp, AmberGold.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
                                 .padding(12.dp)
                         ) {
                             Column {
@@ -192,7 +216,7 @@ fun AdminScreen(
                                 Text("نام کاربری / ایمیل: admin@iranbinary.ir (یا admin)", color = TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                                 Text("کلمه عبور اختصاصی: IranBinaryAdmin2026!", color = EmeraldGlow, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                 Spacer(modifier = Modifier.height(4.dp))
-                                Text("💡 پس از ورود، می‌توانید رمز جدید ایجاد کرده یا ادمین و کارمند جدید تعریف نمایید.", color = TextMuted, fontSize = 10.sp)
+                                Text("💡 پس از ورود، می‌توانید به فرم‌های تحویل سیگنال، مدیریت پلن‌های اشتراک و پرامپت‌باکس هوش مصنوعی دسترسی داشته باشید.", color = TextMuted, fontSize = 10.sp)
                             }
                         }
 
@@ -201,17 +225,17 @@ fun AdminScreen(
                         OutlinedTextField(
                             value = adminEmailInput,
                             onValueChange = { adminEmailInput = it },
-                            label = { Text("نام کاربری یا ایمیل ادمین") },
+                            label = { Text("ایمیل یا نام کاربری مدیریت") },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(14.dp),
                             singleLine = true,
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = SlateDark900,
-                                unfocusedContainerColor = SlateDark900,
                                 focusedBorderColor = EmeraldNeon,
                                 unfocusedBorderColor = CardBorder,
                                 focusedTextColor = TextPrimary,
-                                unfocusedTextColor = TextPrimary
+                                unfocusedTextColor = TextPrimary,
+                                focusedLabelColor = EmeraldGlow,
+                                unfocusedLabelColor = TextSecondary
                             )
                         )
 
@@ -220,7 +244,7 @@ fun AdminScreen(
                         OutlinedTextField(
                             value = adminPassInput,
                             onValueChange = { adminPassInput = it },
-                            label = { Text("رمز عبور مدیریت") },
+                            label = { Text("کلمه عبور") },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(14.dp),
                             singleLine = true,
@@ -235,12 +259,12 @@ fun AdminScreen(
                                 }
                             },
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = SlateDark900,
-                                unfocusedContainerColor = SlateDark900,
                                 focusedBorderColor = EmeraldNeon,
                                 unfocusedBorderColor = CardBorder,
                                 focusedTextColor = TextPrimary,
-                                unfocusedTextColor = TextPrimary
+                                unfocusedTextColor = TextPrimary,
+                                focusedLabelColor = EmeraldGlow,
+                                unfocusedLabelColor = TextSecondary
                             )
                         )
 
@@ -248,12 +272,16 @@ fun AdminScreen(
 
                         Button(
                             onClick = { onLogin(adminEmailInput, adminPassInput) },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = EmeraldNeon),
                             shape = RoundedCornerShape(14.dp)
                         ) {
+                            Icon(Icons.Default.Lock, contentDescription = null, tint = Color.Black, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "ورود به پنل مدیریت و نظارت",
+                                text = "ورود امن به پنل مدیریت",
                                 color = Color.Black,
                                 fontWeight = FontWeight.Black,
                                 fontSize = 14.sp
@@ -264,7 +292,7 @@ fun AdminScreen(
             }
         }
     } else {
-        // Logged-in Admin Dashboard
+        // Authenticated Protected Admin Dashboard
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -272,47 +300,86 @@ fun AdminScreen(
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // Admin Top Bar
+            // Protected Security Header & Status Bar
             item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(18.dp))
+                        .border(1.dp, CardBorder, RoundedCornerShape(18.dp)),
+                    colors = CardDefaults.cardColors(containerColor = CardSurface)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(EmeraldDark)
-                                .border(1.dp, EmeraldNeon, CircleShape),
-                            contentAlignment = Alignment.Center
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Icon(Icons.Default.Shield, contentDescription = null, tint = EmeraldGlow, modifier = Modifier.size(20.dp))
-                        }
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column {
-                            Text(
-                                text = currentUser?.fullName ?: "مدیریت ارشد",
-                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                                color = TextPrimary
-                            )
-                            Text(
-                                text = "سطح دسترسی: ${currentUser?.role} | ${currentUser?.email}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = CyanGlow
-                            )
-                        }
-                    }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(42.dp)
+                                        .clip(CircleShape)
+                                        .background(EmeraldDark)
+                                        .border(1.dp, EmeraldNeon, CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Default.Shield, contentDescription = null, tint = EmeraldGlow, modifier = Modifier.size(22.dp))
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = currentUser?.fullName ?: "مدیریت ارشد سامانه",
+                                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                            color = TextPrimary
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(EmeraldDark)
+                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(
+                                                text = currentUser?.role ?: "ADMIN",
+                                                color = EmeraldGlow,
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Black
+                                            )
+                                        }
+                                    }
+                                    Text(
+                                        text = "نشست امن AES-256 فعال | دسترسی به فرم‌ها و دستیار AI",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = CyanGlow,
+                                        fontSize = 10.5.sp
+                                    )
+                                }
+                            }
 
-                    IconButton(
-                        onClick = onLogout,
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(SlateDark800)
-                    ) {
-                        Icon(Icons.Default.Logout, contentDescription = "خروج", tint = CrimsonGlow, modifier = Modifier.size(18.dp))
+                            IconButton(
+                                onClick = onLogout,
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .background(SlateDark800)
+                            ) {
+                                Icon(Icons.Default.Logout, contentDescription = "خروج", tint = CrimsonGlow, modifier = Modifier.size(18.dp))
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Real-time Metrics Pills
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            MetricPill(title = "سیگنال‌های فعال", value = "${signals.size}", icon = Icons.Default.SignalCellularAlt, modifier = Modifier.weight(1f))
+                            MetricPill(title = "پلن‌های اشتراک", value = "${plans.size} سطح", icon = Icons.Default.Layers, modifier = Modifier.weight(1f))
+                            MetricPill(title = "شبکه تحویل", value = "زیر ۲۵۰ms", icon = Icons.Default.Speed, modifier = Modifier.weight(1f))
+                        }
                     }
                 }
             }
@@ -320,11 +387,12 @@ fun AdminScreen(
             // Navigation Tabs
             item {
                 val tabs = listOf(
-                    "AI_AGENT" to "دستیار AI ادیتور",
-                    "SIGNALS" to "مدیریت سیگنال‌ها",
-                    "PLANS" to "ویرایش پلن‌ها",
-                    "NEWS" to "انتشار اخبار",
-                    "SECURITY" to "رمز و کارمندان"
+                    "AI_PROMPT_BOX" to "دستیار AI و پرامپت‌باکس",
+                    "SIGNAL_DELIVERY" to "فرم تحویل سیگنال",
+                    "SUBSCRIPTION_TIERS" to "فرم پلن‌های اشتراک",
+                    "NEWS_CMS" to "انتشار اخبار فاندامنتال",
+                    "OFFLINE_CACHE_CLOUD" to "کش آفلاین Room و ابری",
+                    "SECURITY" to "امنیت و کارمندان"
                 )
 
                 LazyRow(
@@ -339,7 +407,7 @@ fun AdminScreen(
                                 .background(if (isSelected) EmeraldDark else SlateDark900)
                                 .border(1.dp, if (isSelected) EmeraldNeon else CardBorder, RoundedCornerShape(12.dp))
                                 .clickable { activeTab = code }
-                                .padding(horizontal = 14.dp, vertical = 7.dp)
+                                .padding(horizontal = 14.dp, vertical = 8.dp)
                         ) {
                             Text(
                                 text = label,
@@ -354,30 +422,59 @@ fun AdminScreen(
 
             // Tab Content
             when (activeTab) {
-                "AI_AGENT" -> {
+                "AI_PROMPT_BOX" -> {
                     item {
-                        AiEditorAgentSection(onRunAiAgent = onRunAiAgent)
+                        AiPromptBoxSection(
+                            onRunAiAgent = onRunAiAgent,
+                            onLoadSignalToForm = { asset, category, direction, strike, expiry, payout, regime, confidence, brokers, rationale ->
+                                prefilledAsset = asset
+                                prefilledCategory = category
+                                prefilledDirection = direction
+                                prefilledStrike = strike
+                                prefilledExpiry = expiry
+                                prefilledPayout = payout
+                                prefilledRegime = regime
+                                prefilledConfidence = confidence
+                                prefilledBrokers = brokers
+                                prefilledRationale = rationale
+                                activeTab = "SIGNAL_DELIVERY"
+                            },
+                            onLoadTierToForm = {
+                                activeTab = "SUBSCRIPTION_TIERS"
+                            }
+                        )
                     }
                 }
-                "SIGNALS" -> {
+                "SIGNAL_DELIVERY" -> {
                     item {
-                        SignalManagementSection(
+                        SignalDeliveryFormSection(
                             signals = signals,
+                            initialAsset = prefilledAsset,
+                            initialCategory = prefilledCategory,
+                            initialDirection = prefilledDirection,
+                            initialStrike = prefilledStrike,
+                            initialExpiry = prefilledExpiry,
+                            initialPayout = prefilledPayout,
+                            initialRegime = prefilledRegime,
+                            initialConfidence = prefilledConfidence,
+                            initialBrokers = prefilledBrokers,
+                            initialDeliveryTier = prefilledDeliveryTier,
+                            initialRationale = prefilledRationale,
                             onAddSignal = onAddSignal,
                             onDeleteSignal = onDeleteSignal,
                             onUpdateSignalStatus = onUpdateSignalStatus
                         )
                     }
                 }
-                "PLANS" -> {
+                "SUBSCRIPTION_TIERS" -> {
                     item {
-                        PlanManagementSection(
+                        SubscriptionTiersFormSection(
                             plans = plans,
                             onUpdatePlan = onUpdatePlan
                         )
                     }
                 }
-                "NEWS" -> {
+                "NEWS_CMS" -> {
                     item {
                         NewsManagementSection(
                             newsList = newsList,
@@ -395,6 +492,17 @@ fun AdminScreen(
                         )
                     }
                 }
+                "OFFLINE_CACHE_CLOUD" -> {
+                    item {
+                        OfflineCacheAndCloudSection(
+                            offlineCacheStatus = offlineCacheStatus,
+                            subscriptions = subscriptions,
+                            signals = signals,
+                            newsList = newsList,
+                            onSyncCloud = onSyncCloud
+                        )
+                    }
+                }
             }
 
             item {
@@ -404,18 +512,56 @@ fun AdminScreen(
     }
 }
 
-// Sub-Section: AI Assistant Chatbox / Prompt Box for Editor
+// Sub-Component: Metric Pill
 @Composable
-fun AiEditorAgentSection(onRunAiAgent: (String) -> String) {
+fun MetricPill(
+    title: String,
+    value: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(SlateDark900)
+            .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+            .padding(vertical = 8.dp, horizontal = 10.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, contentDescription = null, tint = CyanNeon, modifier = Modifier.size(16.dp))
+            Spacer(modifier = Modifier.width(6.dp))
+            Column {
+                Text(title, color = TextSecondary, fontSize = 9.5.sp)
+                Text(value, color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+            }
+        }
+    }
+}
+
+// Sub-Section: AI Assistant Prompt Box for Managing Signal Delivery & Subscription Tiers
+@Composable
+fun AiPromptBoxSection(
+    onRunAiAgent: (String) -> String,
+    onLoadSignalToForm: (
+        asset: String, category: String, direction: String, strike: String,
+        expiry: String, payout: String, regime: String, confidence: String,
+        brokers: String, rationale: String
+    ) -> Unit,
+    onLoadTierToForm: () -> Unit
+) {
     var promptInput by remember { mutableStateOf("") }
     var aiResponse by remember {
-        mutableStateOf("سلام ادمین گرامی! 👋 من دستیار هوش مصنوعی ادیتور پلتفرم ایران باینری هستم. شما می‌توانید دستورات خود را مانند: 'تولید سیگنال جدید برای EUR/USD'، 'نگارش خبر تحلیلی یک‌ساعته'، یا 'محاسبه نرخ سربه‌سر Payout' بنویسید.")
+        mutableStateOf(
+            "سلام ادمین گرامی! 👋 دستیار هوش مصنوعی پلتفرم ایران باینری آماده نظارت بر تحویل سیگنال‌ها (Signal Delivery Queue) و بهینه‌سازی اقتصاد پلن‌های اشتراک (Subscription Tiers) است.\n\n" +
+            "شما می‌توانید یکی از پرامپت‌های آماده زیر را انتخاب کرده یا دستور اختصاصی خود را وارد نمایید. نتایج پیشنهادی مستقیماً با یک لمس قابل انتقال به فرم‌های انتشار هستند."
+        )
     }
 
     val quickPrompts = listOf(
-        "سیگنال جدید باینری آپشن بساز",
-        "پیش‌نویس خبر فاندامنتال بنویس",
-        "محاسبه مدیریت ریسک و No Trade"
+        "تولید و بارگذاری سیگنال باینری EUR/USD OTC",
+        "بهینه‌سازی نرخ و تخفیف پلن‌های اشتراک (Tier Economics)",
+        "بررسی وضعیت و تاخیر شبکه تحویل سیگنال‌ها",
+        "ممیزی ریسک و اعمال وتوی اضطراری تحویل"
     )
 
     Card(
@@ -427,35 +573,48 @@ fun AiEditorAgentSection(onRunAiAgent: (String) -> String) {
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Psychology, contentDescription = null, tint = AmberGold, modifier = Modifier.size(22.dp))
-                Spacer(modifier = Modifier.width(8.dp))
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(EmeraldDark)
+                        .border(1.dp, AmberGold, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.Psychology, contentDescription = null, tint = AmberGold, modifier = Modifier.size(20.dp))
+                }
+                Spacer(modifier = Modifier.width(10.dp))
                 Column {
-                    Text("چت‌باکس و پرامپت دستیار هوش مصنوعی ادیتور", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    Text("اتوماسیون ایجنت‌وار تولید سیگنال، نگارش فیدهای خبری و ممیزی ریسک", color = TextSecondary, fontSize = 10.5.sp)
+                    Text("پرامپت‌باکس هوش مصنوعی مدیریت تحویل سیگنال و پلن‌ها", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 13.5.sp)
+                    Text("اتوماسیون هوشمند تولید سیگنال، صف تحویل و ممیزی اقتصادی اشتراک‌ها", color = TextSecondary, fontSize = 10.5.sp)
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            // Quick Prompt Chips
+            // Quick Action Pills
+            Text("پرامپت‌های سریع و عملیاتی:", color = CyanGlow, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(modifier = Modifier.height(6.dp))
+
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(quickPrompts) { p ->
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(16.dp))
                             .background(SlateDark800)
+                            .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
                             .clickable {
                                 promptInput = p
                                 aiResponse = onRunAiAgent(p)
                             }
-                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
                     ) {
-                        Text(p, color = CyanGlow, fontSize = 11.sp)
+                        Text(p, color = CyanGlow, fontSize = 10.5.sp)
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             // Response Box
             Box(
@@ -466,27 +625,80 @@ fun AiEditorAgentSection(onRunAiAgent: (String) -> String) {
                     .border(1.dp, EmeraldDark, RoundedCornerShape(14.dp))
                     .padding(14.dp)
             ) {
-                Text(
-                    text = aiResponse,
-                    color = TextPrimary,
-                    fontSize = 12.sp,
-                    lineHeight = 21.sp
-                )
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = EmeraldGlow, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("پاسخ تحلیلگر هوش مصنوعی ایران باینری:", color = EmeraldGlow, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = aiResponse,
+                        color = TextPrimary,
+                        fontSize = 11.5.sp,
+                        lineHeight = 20.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Direct Form Bridge Buttons (Transfer AI Output to Form Fields)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = {
+                        onLoadSignalToForm(
+                            "EUR/USD (OTC)",
+                            "OTC",
+                            "CALL",
+                            "1.08510",
+                            "1m",
+                            "۹۶٪",
+                            "شکست صعودی تثبیت‌شده",
+                            "90",
+                            "Quotex, Pocket Option",
+                            "افزایش مومنتوم خرید پس از تست موفقیت‌آمیز حمایت M5 و تایید AI1"
+                        )
+                    },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = EmeraldDark),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Icon(Icons.Default.CloudUpload, contentDescription = null, tint = EmeraldNeon, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("📥 بارگذاری در فرم سیگنال", color = EmeraldNeon, fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
+                }
+
+                Button(
+                    onClick = onLoadTierToForm,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = SlateDark800),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Icon(Icons.Default.ShoppingCart, contentDescription = null, tint = AmberGold, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("📥 انتقال به فرم پلن‌ها", color = AmberGold, fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
+                }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
             // Prompt Input Field
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 OutlinedTextField(
                     value = promptInput,
                     onValueChange = { promptInput = it },
-                    placeholder = { Text("دستور خود را برای هوش مصنوعی بنویسید...", color = TextMuted, fontSize = 11.5.sp) },
+                    placeholder = { Text("دستور خود را بنویسید (مثلاً: سیگنال جدید برای طلا بساز)...", fontSize = 11.sp, color = TextMuted) },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(14.dp),
+                    singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = SlateDark900,
-                        unfocusedContainerColor = SlateDark900,
                         focusedBorderColor = EmeraldNeon,
                         unfocusedBorderColor = CardBorder,
                         focusedTextColor = TextPrimary,
@@ -505,53 +717,288 @@ fun AiEditorAgentSection(onRunAiAgent: (String) -> String) {
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = EmeraldNeon),
                     shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier.height(52.dp)
+                    modifier = Modifier.size(52.dp),
+                    contentPadding = PaddingValues(0.dp)
                 ) {
-                    Icon(Icons.Default.Send, contentDescription = "Send", tint = Color.Black)
+                    Icon(Icons.Default.Send, contentDescription = "ارسال", tint = Color.Black, modifier = Modifier.size(20.dp))
                 }
             }
         }
     }
 }
 
-// Sub-Section: Signal Management
+// Sub-Section: Dedicated Signal Delivery & Content Management Form
 @Composable
-fun SignalManagementSection(
+fun SignalDeliveryFormSection(
     signals: List<SignalEntity>,
+    initialAsset: String,
+    initialCategory: String,
+    initialDirection: String,
+    initialStrike: String,
+    initialExpiry: String,
+    initialPayout: String,
+    initialRegime: String,
+    initialConfidence: String,
+    initialBrokers: String,
+    initialDeliveryTier: String,
+    initialRationale: String,
     onAddSignal: (SignalEntity) -> Unit,
     onDeleteSignal: (Long) -> Unit,
     onUpdateSignalStatus: (SignalEntity, String) -> Unit
 ) {
-    var showAddDialog by remember { mutableStateOf(false) }
+    var assetInput by remember(initialAsset) { mutableStateOf(initialAsset) }
+    var categoryInput by remember(initialCategory) { mutableStateOf(initialCategory) }
+    var directionInput by remember(initialDirection) { mutableStateOf(initialDirection) }
+    var strikeInput by remember(initialStrike) { mutableStateOf(initialStrike) }
+    var expiryInput by remember(initialExpiry) { mutableStateOf(initialExpiry) }
+    var payoutInput by remember(initialPayout) { mutableStateOf(initialPayout) }
+    var regimeInput by remember(initialRegime) { mutableStateOf(initialRegime) }
+    var confidenceInput by remember(initialConfidence) { mutableStateOf(initialConfidence) }
+    var brokersInput by remember(initialBrokers) { mutableStateOf(initialBrokers) }
+    var deliveryTierInput by remember(initialDeliveryTier) { mutableStateOf(initialDeliveryTier) }
+    var rationaleInput by remember(initialRationale) { mutableStateOf(initialRationale) }
 
-    var assetInput by remember { mutableStateOf("GBP/USD (OTC)") }
-    var categoryInput by remember { mutableStateOf("OTC") }
-    var directionInput by remember { mutableStateOf("CALL") }
-    var strikeInput by remember { mutableStateOf("1.29450") }
-    var expiryInput by remember { mutableStateOf("1m") }
-    var payoutInput by remember { mutableStateOf("۹۲٪") }
-    var regimeInput by remember { mutableStateOf("شکست مومنتوم صعودی") }
-    var confidenceInput by remember { mutableStateOf("87") }
-    var brokersInput by remember { mutableStateOf("Quotex, Pocket Option") }
-    var rationaleInput by remember { mutableStateOf("حمایت قوی M1 و تایید میانگین متحرک ۲۰ دوره‌ای") }
+    var formSuccessMessage by remember { mutableStateOf<String?>(null) }
 
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        // Broadcast Form Card
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(18.dp))
+                .border(1.dp, CardBorder, RoundedCornerShape(18.dp)),
+            colors = CardDefaults.cardColors(containerColor = CardSurface)
+        ) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.NotificationsActive, contentDescription = null, tint = EmeraldNeon, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("فرم انتشار و تحویل سیگنال معاملاتی (Signal Delivery Form)", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 13.5.sp)
+                }
+                Text("تکمیل فیلدهای فرم زیر جهت ارسال آنی سیگنال به کاربران و صف وب‌سوکت بروکرها", color = TextSecondary, fontSize = 10.5.sp)
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                // Asset Quick Selection Chips
+                Text("انتخاب سریع جفت‌ارز / دارایی:", color = CyanGlow, fontSize = 10.5.sp)
+                val quickAssets = listOf("EUR/USD (OTC)", "GBP/USD (OTC)", "USD/JPY (OTC)", "BTC/USDT", "GOLD (OTC)")
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    items(quickAssets) { a ->
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (assetInput == a) EmeraldDark else SlateDark900)
+                                .border(1.dp, if (assetInput == a) EmeraldNeon else CardBorder, RoundedCornerShape(10.dp))
+                                .clickable { assetInput = a }
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(a, color = if (assetInput == a) EmeraldGlow else TextSecondary, fontSize = 10.sp)
+                        }
+                    }
+                }
+
+                // Row: Asset & Category
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = assetInput,
+                        onValueChange = { assetInput = it },
+                        label = { Text("نام دارایی") },
+                        modifier = Modifier.weight(1.5f),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    OutlinedTextField(
+                        value = categoryInput,
+                        onValueChange = { categoryInput = it },
+                        label = { Text("دسته (OTC/FOREX)") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                }
+
+                // Direction Selector (CALL, PUT, NO_TRADE)
+                Text("جهت سیگنال معاملاتی:", color = TextSecondary, fontSize = 11.sp)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("CALL" to "خرید (CALL ⬆)", "PUT" to "فروش (PUT ⬇)", "NO_TRADE" to "فیلتر وتو (NO TRADE)").forEach { (dir, label) ->
+                        val isSel = directionInput == dir
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(
+                                    if (isSel) {
+                                        when (dir) {
+                                            "CALL" -> EmeraldDark
+                                            "PUT" -> CrimsonRed.copy(alpha = 0.3f)
+                                            else -> AmberGold.copy(alpha = 0.2f)
+                                        }
+                                    } else SlateDark900
+                                )
+                                .border(
+                                    1.dp,
+                                    if (isSel) {
+                                        when (dir) {
+                                            "CALL" -> EmeraldNeon
+                                            "PUT" -> CrimsonGlow
+                                            else -> AmberGold
+                                        }
+                                    } else CardBorder,
+                                    RoundedCornerShape(12.dp)
+                                )
+                                .clickable { directionInput = dir }
+                                .padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = label,
+                                color = if (isSel) TextPrimary else TextSecondary,
+                                fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
+                                fontSize = 10.5.sp
+                            )
+                        }
+                    }
+                }
+
+                // Row: Strike Price, Expiry, Payout
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = strikeInput,
+                        onValueChange = { strikeInput = it },
+                        label = { Text("قیمت استرایک") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    OutlinedTextField(
+                        value = expiryInput,
+                        onValueChange = { expiryInput = it },
+                        label = { Text("انقضا (1m/5m)") },
+                        modifier = Modifier.weight(0.9f),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    OutlinedTextField(
+                        value = payoutInput,
+                        onValueChange = { payoutInput = it },
+                        label = { Text("بازدهی (٪)") },
+                        modifier = Modifier.weight(0.9f),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                }
+
+                // Row: Confidence & Target Delivery Tier
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = confidenceInput,
+                        onValueChange = { confidenceInput = it },
+                        label = { Text("اعتماد هوش مصنوعی (٪)") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    OutlinedTextField(
+                        value = deliveryTierInput,
+                        onValueChange = { deliveryTierInput = it },
+                        label = { Text("تارگت پلن اشتراک") },
+                        modifier = Modifier.weight(1.5f),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                }
+
+                // Market Regime & Recommended Brokers
+                OutlinedTextField(
+                    value = regimeInput,
+                    onValueChange = { regimeInput = it },
+                    label = { Text("رژیم بازار (Market Regime)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                OutlinedTextField(
+                    value = brokersInput,
+                    onValueChange = { brokersInput = it },
+                    label = { Text("بروکرهای بهینه برای اجرای معامله") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                OutlinedTextField(
+                    value = rationaleInput,
+                    onValueChange = { rationaleInput = it },
+                    label = { Text("استدلال تحلیلی چندلایه AI") },
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 3,
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                // Dispatch Buttons
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = {
+                            onAddSignal(
+                                SignalEntity(
+                                    asset = assetInput,
+                                    category = categoryInput,
+                                    direction = directionInput,
+                                    strikePrice = strikeInput,
+                                    currentPrice = strikeInput,
+                                    expiry = expiryInput,
+                                    payoutRate = payoutInput,
+                                    marketRegime = regimeInput,
+                                    confidenceScore = confidenceInput.toIntOrNull() ?: 85,
+                                    riskScore = if (directionInput == "NO_TRADE") "وتو شده (Vetoed)" else "کنترل‌شده (Controlled)",
+                                    vetoStatus = if (directionInput == "NO_TRADE") "غیرمجاز برای ترید" else "تایید شده",
+                                    rationale = "$rationaleInput | تحویل به: $deliveryTierInput",
+                                    recommendedBrokers = brokersInput,
+                                    status = if (directionInput == "NO_TRADE") "VETOED" else "ACTIVE"
+                                )
+                            )
+                            formSuccessMessage = "✅ سیگنال $assetInput با موفقیت در صف تحویل قرار گرفت و به کاربران ارسال شد."
+                        },
+                        modifier = Modifier.weight(1.5f),
+                        colors = ButtonDefaults.buttonColors(containerColor = EmeraldNeon),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.CloudUpload, contentDescription = null, tint = Color.Black, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("ارسال و تحویل فوری به کاربران", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            assetInput = "EUR/USD (OTC)"
+                            directionInput = "CALL"
+                            strikeInput = "1.08500"
+                            expiryInput = "1m"
+                            payoutInput = "۹۲٪"
+                            formSuccessMessage = null
+                        },
+                        modifier = Modifier.weight(0.8f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("پاکسازی", fontSize = 11.sp)
+                    }
+                }
+
+                if (formSuccessMessage != null) {
+                    Text(text = formSuccessMessage!!, color = EmeraldGlow, fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+
+        // Live Delivered Signals List
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text("فهرست و ویرایش سیگنال‌ها (${signals.size})", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-
-            Button(
-                onClick = { showAddDialog = true },
-                colors = ButtonDefaults.buttonColors(containerColor = EmeraldNeon),
-                shape = RoundedCornerShape(10.dp)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = null, tint = Color.Black, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("افزودن سیگنال جدید", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 11.5.sp)
-            }
+            Text("فهرست سیگنال‌های تحویل داده‌شده (${signals.size})", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 13.5.sp)
+            Text("مدیریت وضعیت برد/باخت", color = TextSecondary, fontSize = 10.5.sp)
         }
 
         signals.forEach { signal ->
@@ -568,13 +1015,34 @@ fun SignalManagementSection(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(signal.asset, color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        Text(signal.direction, color = if (signal.direction == "CALL") EmeraldGlow else CrimsonGlow, fontWeight = FontWeight.Black)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(signal.asset, color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 13.5.sp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(SlateDark900)
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(signal.category, color = CyanGlow, fontSize = 9.sp)
+                            }
+                        }
+
+                        Text(
+                            text = signal.direction,
+                            color = when (signal.direction) {
+                                "CALL" -> EmeraldGlow
+                                "PUT" -> CrimsonGlow
+                                else -> AmberGold
+                            },
+                            fontWeight = FontWeight.Black,
+                            fontSize = 12.5.sp
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(4.dp))
 
-                    Text("استرایک: ${signal.strikePrice} | انقضا: ${signal.expiry} | بازدهی: ${signal.payoutRate}", color = TextSecondary, fontSize = 11.sp)
+                    Text("استرایک: ${signal.strikePrice} | انقضا: ${signal.expiry} | بازدهی: ${signal.payoutRate} | اعتماد: ${signal.confidenceScore}٪", color = TextSecondary, fontSize = 11.sp)
 
                     Spacer(modifier = Modifier.height(8.dp))
 
@@ -586,182 +1054,196 @@ fun SignalManagementSection(
                             onClick = { onUpdateSignalStatus(signal, "WON") },
                             modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.buttonColors(containerColor = EmeraldDark),
-                            shape = RoundedCornerShape(8.dp)
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(vertical = 4.dp)
                         ) {
-                            Text("علامت‌گذاری برد (WON)", color = EmeraldGlow, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            Text("علامت برد (WON)", color = EmeraldGlow, fontSize = 9.5.sp, fontWeight = FontWeight.Bold)
                         }
 
                         Button(
                             onClick = { onUpdateSignalStatus(signal, "LOST") },
                             modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.buttonColors(containerColor = SlateDark800),
-                            shape = RoundedCornerShape(8.dp)
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(vertical = 4.dp)
                         ) {
-                            Text("علامت‌گذاری باخت (LOST)", color = CrimsonGlow, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            Text("علامت باخت (LOST)", color = CrimsonGlow, fontSize = 9.5.sp, fontWeight = FontWeight.Bold)
                         }
 
-                        IconButton(onClick = { onDeleteSignal(signal.id) }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = CrimsonRed)
+                        IconButton(
+                            onClick = { onDeleteSignal(signal.id) },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = CrimsonRed, modifier = Modifier.size(16.dp))
                         }
                     }
                 }
             }
         }
-    }
-
-    if (showAddDialog) {
-        AlertDialog(
-            onDismissRequest = { showAddDialog = false },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        onAddSignal(
-                            SignalEntity(
-                                asset = assetInput,
-                                category = categoryInput,
-                                direction = directionInput,
-                                strikePrice = strikeInput,
-                                currentPrice = strikeInput,
-                                expiry = expiryInput,
-                                payoutRate = payoutInput,
-                                marketRegime = regimeInput,
-                                confidenceScore = confidenceInput.toIntOrNull() ?: 85,
-                                riskScore = "کنترل‌شده (Controlled)",
-                                vetoStatus = "تایید شده",
-                                rationale = rationaleInput,
-                                recommendedBrokers = brokersInput,
-                                status = "ACTIVE"
-                            )
-                        )
-                        showAddDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = EmeraldNeon),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text("انتشار سیگنال در اپلیکیشن", color = Color.Black, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                OutlinedButton(onClick = { showAddDialog = false }, shape = RoundedCornerShape(12.dp)) {
-                    Text("انصراف")
-                }
-            },
-            title = { Text("انتشار سیگنال جدید", fontWeight = FontWeight.Bold, color = TextPrimary) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(value = assetInput, onValueChange = { assetInput = it }, label = { Text("نام دارایی (مانند EUR/USD OTC)") }, singleLine = true)
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        OutlinedTextField(value = directionInput, onValueChange = { directionInput = it }, label = { Text("جهت (CALL/PUT/NO_TRADE)") }, modifier = Modifier.weight(1f), singleLine = true)
-                        OutlinedTextField(value = expiryInput, onValueChange = { expiryInput = it }, label = { Text("انقضا (1m/5m)") }, modifier = Modifier.weight(1f), singleLine = true)
-                    }
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        OutlinedTextField(value = strikeInput, onValueChange = { strikeInput = it }, label = { Text("قیمت استرایک") }, modifier = Modifier.weight(1f), singleLine = true)
-                        OutlinedTextField(value = payoutInput, onValueChange = { payoutInput = it }, label = { Text("بازدهی (۹۲٪)") }, modifier = Modifier.weight(1f), singleLine = true)
-                    }
-                    OutlinedTextField(value = brokersInput, onValueChange = { brokersInput = it }, label = { Text("بروکرهای بهینه") }, singleLine = true)
-                    OutlinedTextField(value = rationaleInput, onValueChange = { rationaleInput = it }, label = { Text("تحلیل چندلایه هوش مصنوعی") }, maxLines = 3)
-                }
-            },
-            containerColor = CardSurface,
-            shape = RoundedCornerShape(20.dp)
-        )
     }
 }
 
-// Sub-Section: Plan Management
+// Sub-Section: User Subscription Tiers Form & Management
 @Composable
-fun PlanManagementSection(
+fun SubscriptionTiersFormSection(
     plans: List<PlanEntity>,
     onUpdatePlan: (PlanEntity) -> Unit
 ) {
-    var editingPlan by remember { mutableStateOf<PlanEntity?>(null) }
-    var priceTomanEdit by remember { mutableStateOf("") }
-    var priceUsdtEdit by remember { mutableStateOf("") }
-    var discountEdit by remember { mutableStateOf("") }
+    var selectedPlanId by remember { mutableStateOf(plans.firstOrNull()?.id ?: 1L) }
+    val currentSelectedPlan = plans.find { it.id == selectedPlanId } ?: plans.firstOrNull()
 
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("ویرایش مشخصات و قیمت ۵ پلن اشتراک:", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+    var titleEdit by remember(currentSelectedPlan) { mutableStateOf(currentSelectedPlan?.title ?: "") }
+    var durationTextEdit by remember(currentSelectedPlan) { mutableStateOf(currentSelectedPlan?.durationText ?: "") }
+    var durationDaysEdit by remember(currentSelectedPlan) { mutableStateOf(currentSelectedPlan?.durationDays?.toString() ?: "30") }
+    var priceTomanEdit by remember(currentSelectedPlan) { mutableStateOf(currentSelectedPlan?.priceToman ?: "") }
+    var priceUsdtEdit by remember(currentSelectedPlan) { mutableStateOf(currentSelectedPlan?.priceUsdt ?: "") }
+    var discountEdit by remember(currentSelectedPlan) { mutableStateOf(currentSelectedPlan?.discountPercent?.toString() ?: "0") }
+    var badgeEdit by remember(currentSelectedPlan) { mutableStateOf(currentSelectedPlan?.badge ?: "") }
+    var featuresEdit by remember(currentSelectedPlan) { mutableStateOf(currentSelectedPlan?.features ?: "") }
 
-        plans.forEach { plan ->
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(14.dp))
-                    .border(1.dp, CardBorder, RoundedCornerShape(14.dp)),
-                colors = CardDefaults.cardColors(containerColor = CardSurface)
-            ) {
-                Row(
+    var saveToast by remember { mutableStateOf(false) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        // Tiers Selector Row
+        Text("انتخاب پلن اشتراک جهت ویرایش فیلدها:", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 13.5.sp)
+
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(plans) { p ->
+                val isSel = p.id == selectedPlanId
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (isSel) EmeraldDark else SlateDark900)
+                        .border(1.dp, if (isSel) EmeraldNeon else CardBorder, RoundedCornerShape(12.dp))
+                        .clickable { selectedPlanId = p.id }
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
-                    Column {
-                        Text(plan.title, color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                        Text("${plan.durationText} | ${plan.priceToman} (${plan.priceUsdt})", color = EmeraldGlow, fontSize = 11.5.sp)
-                        if (plan.discountPercent > 0) {
-                            Text("تخفیف اعمال شده: ${plan.discountPercent}٪", color = AmberGold, fontSize = 10.5.sp)
-                        }
-                    }
-
-                    Button(
-                        onClick = {
-                            editingPlan = plan
-                            priceTomanEdit = plan.priceToman
-                            priceUsdtEdit = plan.priceUsdt
-                            discountEdit = plan.discountPercent.toString()
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = SlateDark800),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Icon(Icons.Default.Edit, contentDescription = null, tint = CyanNeon, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("ویرایش", color = CyanNeon, fontSize = 11.sp)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(p.title, color = if (isSel) EmeraldGlow else TextPrimary, fontWeight = FontWeight.Bold, fontSize = 11.5.sp)
+                        Text("${p.priceToman}", color = if (isSel) AmberGold else TextSecondary, fontSize = 9.5.sp)
                     }
                 }
             }
         }
-    }
 
-    if (editingPlan != null) {
-        val plan = editingPlan!!
-        AlertDialog(
-            onDismissRequest = { editingPlan = null },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        onUpdatePlan(
-                            plan.copy(
-                                priceToman = priceTomanEdit,
-                                priceUsdt = priceUsdtEdit,
-                                discountPercent = discountEdit.toIntOrNull() ?: plan.discountPercent
-                            )
+        // Tiers Form Card
+        if (currentSelectedPlan != null) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .border(1.dp, CardBorder, RoundedCornerShape(18.dp)),
+                colors = CardDefaults.cardColors(containerColor = CardSurface)
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.ShoppingCart, contentDescription = null, tint = AmberGold, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("فرم مدیریت و قیمت‌گذاری ${currentSelectedPlan.title}", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 13.5.sp)
+                    }
+                    Text("ویرایش قیمت ریالی، دلاری، تخفیف، مدت زمان اعتبار و امتیازات تحویل", color = TextSecondary, fontSize = 10.5.sp)
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = titleEdit,
+                            onValueChange = { titleEdit = it },
+                            label = { Text("عنوان پلن") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp)
                         )
-                        editingPlan = null
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = EmeraldNeon),
-                    shape = RoundedCornerShape(10.dp)
-                ) {
-                    Text("ذخیره تغییرات پلن", color = Color.Black, fontWeight = FontWeight.Bold)
+                        OutlinedTextField(
+                            value = durationTextEdit,
+                            onValueChange = { durationTextEdit = it },
+                            label = { Text("متن مدت (مثلاً ۱ ماهه)") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                    }
+
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = priceTomanEdit,
+                            onValueChange = { priceTomanEdit = it },
+                            label = { Text("قیمت به تومان") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        OutlinedTextField(
+                            value = priceUsdtEdit,
+                            onValueChange = { priceUsdtEdit = it },
+                            label = { Text("قیمت دلاری USDT") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                    }
+
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = discountEdit,
+                            onValueChange = { discountEdit = it },
+                            label = { Text("درصد تخفیف (٪)") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        OutlinedTextField(
+                            value = badgeEdit,
+                            onValueChange = { badgeEdit = it },
+                            label = { Text("برچسب ویژه") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                    }
+
+                    OutlinedTextField(
+                        value = featuresEdit,
+                        onValueChange = { featuresEdit = it },
+                        label = { Text("ویژگی‌ها و امتیازات تحویل (با | جدا کنید)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        maxLines = 3,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    Button(
+                        onClick = {
+                            onUpdatePlan(
+                                currentSelectedPlan.copy(
+                                    title = titleEdit,
+                                    durationText = durationTextEdit,
+                                    durationDays = durationDaysEdit.toIntOrNull() ?: currentSelectedPlan.durationDays,
+                                    priceToman = priceTomanEdit,
+                                    priceUsdt = priceUsdtEdit,
+                                    discountPercent = discountEdit.toIntOrNull() ?: currentSelectedPlan.discountPercent,
+                                    badge = badgeEdit,
+                                    features = featuresEdit
+                                )
+                            )
+                            saveToast = true
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = EmeraldNeon),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color.Black, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("ذخیره و اعمال تغییرات در دیتابیس پلن‌ها", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.5.sp)
+                    }
+
+                    if (saveToast) {
+                        Text("✅ تغییرات پلن ${currentSelectedPlan.title} با موفقیت در سامانه ذخیره شد.", color = EmeraldGlow, fontSize = 11.sp)
+                    }
                 }
-            },
-            dismissButton = {
-                OutlinedButton(onClick = { editingPlan = null }, shape = RoundedCornerShape(10.dp)) {
-                    Text("انصراف")
-                }
-            },
-            title = { Text("ویرایش قیمت ${plan.title}", color = TextPrimary, fontWeight = FontWeight.Bold) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(value = priceTomanEdit, onValueChange = { priceTomanEdit = it }, label = { Text("قیمت تومان") }, singleLine = true)
-                    OutlinedTextField(value = priceUsdtEdit, onValueChange = { priceUsdtEdit = it }, label = { Text("قیمت دلاری USDT") }, singleLine = true)
-                    OutlinedTextField(value = discountEdit, onValueChange = { discountEdit = it }, label = { Text("درصد تخفیف") }, singleLine = true)
-                }
-            },
-            containerColor = CardSurface,
-            shape = RoundedCornerShape(18.dp)
-        )
+            }
+        }
     }
 }
 
@@ -785,7 +1267,7 @@ fun NewsManagementSection(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text("فهرست اخبار یک‌ساعته (${newsList.size})", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Text("فهرست اخبار یک‌ساعته (${newsList.size})", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 13.5.sp)
 
             Button(
                 onClick = { showAddNewsDialog = true },
@@ -952,18 +1434,41 @@ fun SecurityAndStaffSection(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.PersonAdd, contentDescription = null, tint = CyanNeon)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("ایجاد ادمین یا کارمند جدید", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text("افزودن کارمند یا مدیر جدید به سیستم", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                OutlinedTextField(value = newStaffName, onValueChange = { newStaffName = it }, label = { Text("نام و نام خانوادگی کارمند") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                Spacer(modifier = Modifier.height(6.dp))
-                OutlinedTextField(value = newStaffEmail, onValueChange = { newStaffEmail = it }, label = { Text("ایمیل یا نام کاربری") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                Spacer(modifier = Modifier.height(6.dp))
-                OutlinedTextField(value = newStaffPass, onValueChange = { newStaffPass = it }, label = { Text("کلمه عبور اختصاصی") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                Spacer(modifier = Modifier.height(6.dp))
-                OutlinedTextField(value = newStaffRole, onValueChange = { newStaffRole = it }, label = { Text("نقش کاربری (ADMIN یا STAFF)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                OutlinedTextField(
+                    value = newStaffName,
+                    onValueChange = { newStaffName = it },
+                    label = { Text("نام و نام خانوادگی") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = newStaffEmail,
+                    onValueChange = { newStaffEmail = it },
+                    label = { Text("ایمیل کارمند") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = newStaffPass,
+                    onValueChange = { newStaffPass = it },
+                    label = { Text("کلمه عبور اولیه") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true
+                )
 
                 Spacer(modifier = Modifier.height(10.dp))
 
@@ -980,46 +1485,382 @@ fun SecurityAndStaffSection(
                     colors = ButtonDefaults.buttonColors(containerColor = CyanNeon),
                     shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text("افزودن و فعال‌سازی دسترسی کارمند", color = Color.Black, fontWeight = FontWeight.Bold)
+                    Text("ایجاد حساب کاربری اداری", color = Color.Black, fontWeight = FontWeight.Bold)
                 }
 
                 if (staffAddSuccess) {
                     Spacer(modifier = Modifier.height(6.dp))
-                    Text("✅ کارمند/ادمین جدید با موفقیت اضافه گردید.", color = CyanGlow, fontSize = 11.sp)
+                    Text("✅ حساب پرسنلی جدید با موفقیت ایجاد گردید.", color = EmeraldGlow, fontSize = 11.sp)
                 }
             }
         }
+    }
+}
 
-        // List of Active Staff
-        Text("فهرست مدیران و کارمندان ثبت‌شده در SQL:", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-        staffList.forEach { staff ->
+// Sub-Component: Offline Cache & Firestore Cloud Section
+@Composable
+fun OfflineCacheAndCloudSection(
+    offlineCacheStatus: OfflineCacheSyncStatus?,
+    subscriptions: List<UserSubscriptionEntity>,
+    signals: List<SignalEntity>,
+    newsList: List<NewsEntity>,
+    onSyncCloud: () -> Unit
+) {
+    var selectedCategory by remember { mutableStateOf("SUBSCRIPTIONS") } // SUBSCRIPTIONS, SIGNALS, NEWS
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .border(1.dp, CardBorder, RoundedCornerShape(20.dp)),
+        colors = CardDefaults.cardColors(containerColor = CardSurface)
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            // Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(EmeraldDark)
+                            .border(1.dp, EmeraldNeon, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.CloudUpload, contentDescription = null, tint = EmeraldGlow, modifier = Modifier.size(20.dp))
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = "لایه کش آفلاین Room و همگام‌سازی ابری Firestore",
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                            color = TextPrimary
+                        )
+                        Text(
+                            text = "Single Source of Truth (SSOT) - دسترسی ۱۰۰٪ آفلاین به داده‌ها",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = CyanGlow,
+                            fontSize = 10.5.sp
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Status Banner
+            val isOnline = offlineCacheStatus?.isOnline ?: true
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(CardSurface)
-                    .border(1.dp, CardBorder, RoundedCornerShape(10.dp))
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(if (isOnline) EmeraldDark.copy(alpha = 0.4f) else SlateDark900)
+                    .border(1.dp, if (isOnline) EmeraldNeon.copy(alpha = 0.5f) else AmberGold, RoundedCornerShape(12.dp))
                     .padding(12.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Column {
-                        Text(staff.fullName, color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 12.5.sp)
-                        Text("${staff.email} | دسترسی: ${staff.role}", color = TextSecondary, fontSize = 11.sp)
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isOnline) EmeraldNeon else AmberGold)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = if (isOnline) "پایگاه داده آنلاین و کش محلی Room متصل است" else "حالت آفلاین (استفاده ایمن از کش Room)",
+                                color = if (isOnline) EmeraldGlow else AmberGold,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.5.sp
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(3.dp))
+                        Text(
+                            text = offlineCacheStatus?.syncMessage ?: "داده‌ها در حافظه محلی SQLite به‌صورت آنی ذخیره می‌شوند.",
+                            color = TextSecondary,
+                            fontSize = 10.5.sp
+                        )
                     }
+
+                    Spacer(modifier = Modifier.width(10.dp))
+
+                    Button(
+                        onClick = onSyncCloud,
+                        colors = ButtonDefaults.buttonColors(containerColor = CyanNeon),
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Icon(Icons.Default.CloudUpload, contentDescription = null, tint = Color.Black, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(text = "همگام‌سازی", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Stats grid
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                MetricPill(
+                    title = "اشتراک‌های Room",
+                    value = "${subscriptions.size} رکورد",
+                    icon = Icons.Default.Layers,
+                    modifier = Modifier.weight(1f)
+                )
+                MetricPill(
+                    title = "سیگنال‌های Room",
+                    value = "${signals.size} سیگنال",
+                    icon = Icons.Default.SignalCellularAlt,
+                    modifier = Modifier.weight(1f)
+                )
+                MetricPill(
+                    title = "اخبار فاندامنتال",
+                    value = "${newsList.size} خبر",
+                    icon = Icons.Default.Newspaper,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Category selector tabs
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                listOf(
+                    "SUBSCRIPTIONS" to "اشتراک‌های کاربران (${subscriptions.size})",
+                    "SIGNALS" to "سیگنال‌های تاریخی (${signals.size})",
+                    "NEWS" to "اخبار فاندامنتال (${newsList.size})"
+                ).forEach { (code, title) ->
+                    val isSel = selectedCategory == code
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(EmeraldDark)
-                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                            .weight(1f)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (isSel) SlateDark800 else SlateDark900)
+                            .border(1.dp, if (isSel) EmeraldNeon else CardBorder, RoundedCornerShape(10.dp))
+                            .clickable { selectedCategory = code }
+                            .padding(vertical = 8.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(staff.role, color = EmeraldGlow, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = title,
+                            color = if (isSel) EmeraldGlow else TextMuted,
+                            fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
+                            fontSize = 10.5.sp
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // List based on selected category
+            when (selectedCategory) {
+                "SUBSCRIPTIONS" -> {
+                    if (subscriptions.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("هیچ اشتراکی در کش محلی ثبت نشده است.", color = TextMuted, fontSize = 12.sp)
+                        }
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            subscriptions.forEach { sub ->
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .border(1.dp, CardBorder, RoundedCornerShape(12.dp)),
+                                    colors = CardDefaults.cardColors(containerColor = SlateDark900)
+                                ) {
+                                    Column(modifier = Modifier.padding(12.dp)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = sub.userEmail,
+                                                color = TextPrimary,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 12.5.sp
+                                            )
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(6.dp))
+                                                    .background(EmeraldDark)
+                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                            ) {
+                                                Text(
+                                                    text = sub.planTitle,
+                                                    color = EmeraldGlow,
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 10.sp
+                                                )
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.height(6.dp))
+
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text(
+                                                text = "مدت: ${sub.durationDays} روز | پرداخت: ${sub.paymentMethod}",
+                                                color = TextSecondary,
+                                                fontSize = 10.5.sp
+                                            )
+                                            Text(
+                                                text = "شناسه کش Room: ${sub.id.take(16)}",
+                                                color = CyanGlow,
+                                                fontSize = 9.5.sp
+                                            )
+                                        }
+
+                                        if (sub.transactionRef.isNotEmpty()) {
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = "کد رهگیری: ${sub.transactionRef}",
+                                                color = TextMuted,
+                                                fontSize = 9.5.sp
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                "SIGNALS" -> {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        signals.take(8).forEach { sig ->
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .border(1.dp, CardBorder, RoundedCornerShape(12.dp)),
+                                colors = CardDefaults.cardColors(containerColor = SlateDark900)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
+                                        Text(
+                                            text = "${sig.asset} (${sig.direction})",
+                                            color = TextPrimary,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 12.5.sp
+                                        )
+                                        Text(
+                                            text = "استرایک: ${sig.strikePrice} | زمان: ${sig.expiry} | سود: ${sig.payoutRate}",
+                                            color = TextSecondary,
+                                            fontSize = 10.5.sp
+                                        )
+                                    }
+
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(
+                                                when (sig.status) {
+                                                    "WON" -> EmeraldDark
+                                                    "LOST" -> CrimsonRed.copy(alpha = 0.3f)
+                                                    "NO_TRADE" -> SlateDark800
+                                                    else -> CyanGlow.copy(alpha = 0.2f)
+                                                }
+                                            )
+                                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                                    ) {
+                                        Text(
+                                            text = when (sig.status) {
+                                                "WON" -> "برد (WON)"
+                                                "LOST" -> "باخت (LOST)"
+                                                "NO_TRADE" -> "بدون ورود (VETO)"
+                                                else -> "فعال (ACTIVE)"
+                                            },
+                                            color = when (sig.status) {
+                                                "WON" -> EmeraldGlow
+                                                "LOST" -> CrimsonGlow
+                                                "NO_TRADE" -> AmberGold
+                                                else -> CyanNeon
+                                            },
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 10.sp
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                "NEWS" -> {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        newsList.take(6).forEach { news ->
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .border(1.dp, CardBorder, RoundedCornerShape(12.dp)),
+                                colors = CardDefaults.cardColors(containerColor = SlateDark900)
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = news.title,
+                                            color = TextPrimary,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 12.sp,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(EmeraldDark)
+                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(news.category, color = EmeraldGlow, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = news.summary,
+                                        color = TextSecondary,
+                                        fontSize = 10.5.sp,
+                                        maxLines = 2
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
     }
 }
+

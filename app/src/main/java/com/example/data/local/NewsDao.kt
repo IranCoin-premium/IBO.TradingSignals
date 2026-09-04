@@ -12,6 +12,15 @@ interface NewsDao {
     @Query("SELECT * FROM news ORDER BY timestamp DESC")
     fun getAllNews(): Flow<List<NewsEntity>>
 
+    @Query("SELECT * FROM news WHERE category = :category ORDER BY timestamp DESC")
+    fun getNewsByCategory(category: String): Flow<List<NewsEntity>>
+
+    @Query("SELECT * FROM news WHERE impact = 'HIGH' ORDER BY timestamp DESC")
+    fun getHighImpactNews(): Flow<List<NewsEntity>>
+
+    @Query("SELECT * FROM news WHERE id = :id LIMIT 1")
+    suspend fun getNewsById(id: Long): NewsEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertNews(item: NewsEntity): Long
 

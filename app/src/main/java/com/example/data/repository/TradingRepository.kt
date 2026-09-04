@@ -6,6 +6,7 @@ import com.example.data.local.NewsEntity
 import com.example.data.local.PlanEntity
 import com.example.data.local.SignalEntity
 import com.example.data.local.UserEntity
+import com.example.data.local.UserSubscriptionEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -27,15 +28,24 @@ data class BrokerItem(
     val description: String
 )
 
-class TradingRepository(private val db: AppDatabase) {
+class TradingRepository(
+    private val db: AppDatabase,
+    private val context: Context
+) {
+    val offlineCacheManager = FirestoreOfflineCacheManager(db, context.applicationContext)
 
     private val _currentUser = MutableStateFlow<UserEntity?>(null)
     val currentUser: StateFlow<UserEntity?> = _currentUser.asStateFlow()
 
     val allSignals: Flow<List<SignalEntity>> = db.signalDao().getAllSignals()
+    val historicalSignals: Flow<List<SignalEntity>> = db.signalDao().getHistoricalSignals()
+    val activeSignals: Flow<List<SignalEntity>> = db.signalDao().getActiveSignals()
     val allNews: Flow<List<NewsEntity>> = db.newsDao().getAllNews()
+    val highImpactNews: Flow<List<NewsEntity>> = db.newsDao().getHighImpactNews()
     val allPlans: Flow<List<PlanEntity>> = db.planDao().getAllPlans()
     val allAdmins: Flow<List<UserEntity>> = db.userDao().getAllAdminsAndStaff()
+    val allSubscriptions: Flow<List<UserSubscriptionEntity>> = db.userSubscriptionDao().getAllSubscriptions()
+    val offlineCacheStatus: StateFlow<OfflineCacheSyncStatus> = offlineCacheManager.syncStatus
 
     // 15+ Binary Option Brokers & Exchanges
     val binaryBrokers: List<BrokerItem> = listOf(
@@ -273,6 +283,47 @@ class TradingRepository(private val db: AppDatabase) {
                     )
                 )
             }
+
+            // Seed initial User Subscriptions for offline cache demonstration if empty
+            if (db.userSubscriptionDao().getCount() == 0) {
+                db.userSubscriptionDao().insertAll(
+                    listOf(
+                        UserSubscriptionEntity(
+                            id = "sub_seed_admin",
+                            userId = "1",
+                            userEmail = "admin@iranbinary.ir",
+                            planTitle = "یک ساله سازمانی VIP",
+                            durationDays = 365,
+                            priceToman = "۱۶,۵۰۰,۰۰۰ تومان",
+                            priceUsdt = "$349",
+                            status = "ACTIVE",
+                            startDate = System.currentTimeMillis() - 7L * 86400000L,
+                            expiryDate = System.currentTimeMillis() + 358L * 86400000L,
+                            paymentMethod = "CRYPTO_USDT",
+                            transactionRef = "TRC20-IB-992147",
+                            isCachedLocally = true
+                        ),
+                        UserSubscriptionEntity(
+                            id = "sub_seed_demo",
+                            userId = "2",
+                            userEmail = "trader@iranbinary.ir",
+                            planTitle = "سه ماهه طلایی",
+                            durationDays = 90,
+                            priceToman = "۵,۸۵۰,۰۰۰ تومان",
+                            priceUsdt = "$119",
+                            status = "ACTIVE",
+                            startDate = System.currentTimeMillis() - 2L * 86400000L,
+                            expiryDate = System.currentTimeMillis() + 88L * 86400000L,
+                            paymentMethod = "TOMAN_CARD",
+                            transactionRef = "SHETAB-84210",
+                            isCachedLocally = true
+                        )
+                    )
+                )
+            }
+
+            // Start Firestore background real-time sync with Room offline cache layer
+            offlineCacheManager.startRealtimeSync(scope)
         }
     }
 
@@ -359,23 +410,23 @@ class TradingRepository(private val db: AppDatabase) {
     }
 
     suspend fun addSignal(signal: SignalEntity): Long {
-        return db.signalDao().insertSignal(signal)
+        return offlineCacheManager.cacheAndUploadSignal(signal)
     }
 
     suspend fun updateSignal(signal: SignalEntity) {
-        db.signalDao().updateSignal(signal)
+        offlineCacheManager.cacheAndUploadSignal(signal)
     }
 
     suspend fun deleteSignal(id: Long) {
-        db.signalDao().deleteSignalById(id)
+        offlineCacheManager.deleteCachedSignal(id)
     }
 
     suspend fun addNews(news: NewsEntity): Long {
-        return db.newsDao().insertNews(news)
+        return offlineCacheManager.cacheAndUploadNews(news)
     }
 
     suspend fun deleteNews(id: Long) {
-        db.newsDao().deleteNewsById(id)
+        offlineCacheManager.deleteCachedNews(id)
     }
 
     suspend fun updatePlan(plan: PlanEntity) {
@@ -388,6 +439,61 @@ class TradingRepository(private val db: AppDatabase) {
         val updated = user.copy(activePlan = planTitle, planExpiryTimestamp = expiry)
         db.userDao().updateUser(updated)
         _currentUser.value = updated
+
+        // Record in offline cache layer & sync to Firestore
+        val sub = UserSubscriptionEntity(
+            id = "sub_${user.id}_${System.currentTimeMillis()}",
+            userId = user.id.toString(),
+            userEmail = user.email,
+            planTitle = planTitle,
+            durationDays = days,
+            priceToman = "",
+            priceUsdt = "",
+            status = "ACTIVE",
+            startDate = System.currentTimeMillis(),
+            expiryDate = expiry,
+            paymentMethod = "PROMO_UPGRADE",
+            transactionRef = "INTERNAL-${System.currentTimeMillis() % 100000}",
+            isCachedLocally = true
+        )
+        offlineCacheManager.cacheAndUploadUserSubscription(sub)
+    }
+
+    suspend fun recordUserSubscription(
+        planTitle: String,
+        durationDays: Int,
+        priceToman: String,
+        priceUsdt: String,
+        paymentMethod: String = "CRYPTO_USDT",
+        transactionRef: String = ""
+    ): UserSubscriptionEntity? {
+        val user = _currentUser.value ?: return null
+        val expiry = System.currentTimeMillis() + durationDays.toLong() * 24 * 60 * 60 * 1000
+        val sub = UserSubscriptionEntity(
+            id = "sub_${user.id}_${System.currentTimeMillis()}",
+            userId = user.id.toString(),
+            userEmail = user.email,
+            planTitle = planTitle,
+            durationDays = durationDays,
+            priceToman = priceToman,
+            priceUsdt = priceUsdt,
+            status = "ACTIVE",
+            startDate = System.currentTimeMillis(),
+            expiryDate = expiry,
+            paymentMethod = paymentMethod,
+            transactionRef = transactionRef,
+            isCachedLocally = true
+        )
+        offlineCacheManager.cacheAndUploadUserSubscription(sub)
+
+        val updated = user.copy(activePlan = planTitle, planExpiryTimestamp = expiry)
+        db.userDao().updateUser(updated)
+        _currentUser.value = updated
+        return sub
+    }
+
+    suspend fun syncOfflineCacheWithCloud() {
+        offlineCacheManager.syncAllFromCloud()
     }
 
     suspend fun updateUser(user: UserEntity) {
@@ -418,8 +524,34 @@ class TradingRepository(private val db: AppDatabase) {
     fun runAiEditorAgent(prompt: String): String {
         val lower = prompt.lowercase()
         return when {
+            "تحویل" in lower || "delivery" in lower || "ارسال" in lower -> {
+                "🤖 دستیار هوش مصنوعی تحویل سیگنال (Signal Delivery Engine):\n" +
+                "• وضعیت مانیتورینگ شبکه تحویل: فعال و پرسرعت (Ultra-Low Latency)\n" +
+                "• کانال‌های فعال: اعلان پوش فوری درون‌برنامه‌ای، پیام‌رسان تلگرام VIP، داشبورد وب‌سوکت\n" +
+                "• بهینه‌سازی تحویل: سیگنال‌های انقضای ۱ دقیقه‌ای با میانگین تاخیر ارسال زیر ۲۵۰ میلی‌ثانیه به کاربران پلن‌های ۳ ماهه، ۶ ماهه و ۱ ساله توزیع می‌گردد.\n" +
+                "• توزیع بر اساس پینگ بروکرها: کاربران Quotex و Pocket Option در اولویت صف وب‌سوکت قرار دارند.\n" +
+                "• پیشنهاد سیگنال تحویل فوری: برای انتقال مستقیم به فرم انتشار، دکمه «بارگذاری در فرم سیگنال» را لمس فرمایید."
+            }
+            "پلن" in lower || "اشتراک" in lower || "tier" in lower || "subscription" in lower || "قیمت" in lower || "تخفیف" in lower -> {
+                "🤖 دستیار هوش مصنوعی اقتصاد اشتراک‌ها (Subscription Tiers Architect):\n" +
+                "• ممیزی ۵ لایه اشتراک فعال پلتفرم:\n" +
+                "  ۱. یک هفته‌ای: ۸۵۰,۰۰۰ تومان (۱۹$) - مناسب تست و اثبات بازدهی\n" +
+                "  ۲. یک ماهه: ۲,۴۵۰,۰۰۰ تومان (۴۹$) - تخفیف ۱۰٪ (پلن استاندارد)\n" +
+                "  ۳. سه ماهه: ۵,۸۵۰,۰۰۰ تومان (۱۱۹$) - تخفیف ۲۰٪ (محبوب‌ترین و بهینه‌ترین LTV)\n" +
+                "  ۴. شش ماهه: ۹,۹۰۰,۰۰۰ تومان (۱۹۹$) - تخفیف ۳۵٪ (معامله‌گران نیمه‌حرفه‌ای)\n" +
+                "  ۵. یک ساله سازمانی: ۱۶,۵۰۰,۰۰۰ تومان (۳۴۹$) - تخفیف ۵۰٪ (VIP نامحدود)\n" +
+                "• تحلیل ارزش امیدریاضی کاربر (EV): با وین‌ریت میانگین ۷۸٪ و سود ۸۵٪ در هر معامله، هزینه پلن ۳ ماهه با ۱۰ معامله موفق پوشش داده می‌شود.\n" +
+                "• توصیه بهینه‌سازی: اعمال کمپین تخفیف ویژه عیدانه ۳۰٪ روی پلن ۳ ماهه برای رشد ۴۲٪ نرخ ارتقای کاربران رایگان."
+            }
             "سیگنال" in lower || "signal" in lower -> {
-                "🤖 دستیار هوش مصنوعی ایران باینری:\nسیگنال جدید پیشنهادی بر اساس شرایط فعلی بازار:\n• دارایی: EUR/USD (OTC)\n• جهت: CALL (خرید / بالا)\n• زمان انقضا: 1 دقیقه\n• قیمت استرایک: 1.08510\n• رژیم بازار: شکست صعودی تثبیت‌شده\n• درصد اعتماد: 90%\n• رتبه ریسک: کم\n• بروکرهای بهینه: Quotex, Pocket Option\n• تحلیل: افزایش مومنتوم خرید پس از تست موفقیت‌آمیز حمایت M5."
+                "🤖 دستیار هوش مصنوعی ایران باینری:\nسیگنال جدید پیشنهادی بر اساس شرایط فعلی بازار:\n• دارایی: EUR/USD (OTC)\n• جهت: CALL (خرید / بالا)\n• زمان انقضا: 1 دقیقه\n• قیمت استرایک: 1.08510\n• رژیم بازار: شکست صعودی تثبیت‌شده\n• درصد اعتماد: 90%\n• رتبه ریسک: کم\n• بروکرهای بهینه: Quotex, Pocket Option\n• تحلیل: افزایش مومنتوم خرید پس از تست موفقیت‌آمیز حمایت M5.\n(می‌توانید با دکمه زیر اطلاعات این سیگنال را مستقیماً وارد فرم انتشار نمایید.)"
+            }
+            "وتو" in lower || "veto" in lower || "توقف" in lower || "خطر" in lower -> {
+                "🤖 دستیار هوش مصنوعی نظارت بر ریسک (AI3 Governor):\n" +
+                "• ممیزی وضعیت نوسانات کلان: شاخص نوسان VIX در محدوده نرمال\n" +
+                "• رژیم اسپرد بروکرهای OTC: بررسی شد؛ بدون اسلیپیج غیرعادی در Pocket Option و Quotex\n" +
+                "• وضعیت وتو: آماده اعمال حق وتوی سراسری در صورت انتشار ناگهانی نرخ بهره فدرال رزرو (FOMC)\n" +
+                "• توصیه: انتشار سیگنال‌های جفت‌ارزهای OTC بدون مانع است."
             }
             "تحلیل" in lower || "اخبار" in lower || "news" in lower -> {
                 "🤖 دستیار هوش مصنوعی ایران باینری:\nپیش‌نویس خبر فاندامنتال یک‌ساعته برای انتشار:\nعنوان: تداوم فاز رنج بیت‌کوین در آستانه گشایش بازار نیویورک\nدسته‌بندی: CRYPTO\nخلاصه: نوسانات شاخص نوسان واقعی (ATR) در کف چند روزه نشان از آمادگی بازار برای یک Breakout قدرتمند در سشن عصرگاهی دارد. معامله‌گران باینری از قراردادهای ۵ دقیقه‌ای رنج بهره‌مند شوند."
@@ -428,7 +560,7 @@ class TradingRepository(private val db: AppDatabase) {
                 "🤖 دستیار هوش مصنوعی ایران باینری:\nتوصیه معماری AI2 Risk Architect:\n۱. سقف مواجهه روزانه: حداکثر ۳٪ کل بالانس در هر نشست\n۲. وتو قطعی مارتینگل: افزایش حجم دوبرابری مساوی با شکست ریاضی است\n۳. حداقل نرخ برد سربه‌سر برای Payout 92% برابر است با: L/(P+L) = 1/(0.92+1) = 52.08%."
             }
             else -> {
-                "🤖 دستیار هوش مصنوعی ایران باینری:\nدستور شما برای بهینه‌سازی سامانه ثبت گردید. آماده تولید سیگنال‌های اتوماتیک، نگارش مقالات سئو برای بازارهای OTC و فارکس، و بررسی یکپارچگی پایگاه داده."
+                "🤖 دستیار هوش مصنوعی ایران باینری:\nدستور شما دریافت شد. آماده بهینه‌سازی شبکه تحویل سیگنال‌ها (Signal Delivery Queue)، بازنگری سطوح اقتصادی پلن‌های اشتراک (Subscription Tiers)، تولید سیگنال‌های پربازده بر اساس رژیم‌های بازار، و انتشار اخبار فاندامنتال یک‌ساعته."
             }
         }
     }
@@ -440,7 +572,7 @@ class TradingRepository(private val db: AppDatabase) {
         fun getInstance(context: Context): TradingRepository {
             return INSTANCE ?: synchronized(this) {
                 val db = AppDatabase.getInstance(context)
-                val instance = TradingRepository(db)
+                val instance = TradingRepository(db, context.applicationContext)
                 INSTANCE = instance
                 instance
             }
