@@ -1,0 +1,449 @@
+package com.example.data.repository
+
+import android.content.Context
+import com.example.data.local.AppDatabase
+import com.example.data.local.NewsEntity
+import com.example.data.local.PlanEntity
+import com.example.data.local.SignalEntity
+import com.example.data.local.UserEntity
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+
+data class BrokerItem(
+    val id: String,
+    val name: String,
+    val faName: String,
+    val payoutRate: String,
+    val otc247: Boolean,
+    val executionSpeed: String,
+    val minDeposit: String,
+    val status: String,
+    val badge: String,
+    val description: String
+)
+
+class TradingRepository(private val db: AppDatabase) {
+
+    private val _currentUser = MutableStateFlow<UserEntity?>(null)
+    val currentUser: StateFlow<UserEntity?> = _currentUser.asStateFlow()
+
+    val allSignals: Flow<List<SignalEntity>> = db.signalDao().getAllSignals()
+    val allNews: Flow<List<NewsEntity>> = db.newsDao().getAllNews()
+    val allPlans: Flow<List<PlanEntity>> = db.planDao().getAllPlans()
+    val allAdmins: Flow<List<UserEntity>> = db.userDao().getAllAdminsAndStaff()
+
+    // 15+ Binary Option Brokers & Exchanges
+    val binaryBrokers: List<BrokerItem> = listOf(
+        BrokerItem("pocket_option", "Pocket Option", "پوکت آپشن", "تا ۹۶٪", true, "سریع (زیر ۱ ثانیه)", "$5", "فعال و متصل", "پرطرفدارترین", "پشتیبانی کامل از بازارهای OTC و واریز ریالی و کریپتو"),
+        BrokerItem("quotex", "Quotex", "کوتکس", "تا ۹۵٪", true, "فوری (Ultra-Fast)", "$10", "فعال و متصل", "محبوب معامله‌گران", "پلتفرم پیشرفته با ابزارهای تحلیل تکنیکال داخلی"),
+        BrokerItem("iq_option", "IQ Option", "آی‌کیو آپشن", "تا ۹۵٪", false, "استاندارد", "$10", "فعال", "بین‌المللی", "قدیمی‌ترین و خوش‌نام‌ترین پلتفرم باینری در سطح جهان"),
+        BrokerItem("deriv", "Deriv (Binary.com)", "دریو (باینری دات‌کام)", "تا ۹۸٪", true, "الگوریتمی", "$5", "فعال و متصل", "تنظیم‌شده و معتبر", "پیشرو در انواع قراردادهای Digit و Rise/Fall"),
+        BrokerItem("olymp_trade", "Olymp Trade", "الیمپ ترید", "تا ۹۲٪", false, "سریع", "$10", "فعال", "ساده و روان", "معاملات زمان ثابت (FTT) با رابط کاربری کاربرپسند"),
+        BrokerItem("nadex", "Nadex", "نیدکس آمریکا", "تا ۸۵٪", false, "بورس رسمی", "$0", "نظارت CFTC", "رسمی و قانونی", "بورس رسمی ارائه‌دهنده Event Contracts در ایالات متحده"),
+        BrokerItem("expert_option", "ExpertOption", "اکسپرت آپشن", "تا ۹۰٪", true, "سریع", "$10", "فعال", "معاملات اجتماعی", "دارای اتاق گفتگو و قابلیت کپی تریدینگ اختصاصی"),
+        BrokerItem("binomo", "Binomo", "بینومو", "تا ۸۹٪", true, "فوری", "$10", "فعال", "مسابقات روزانه", "پلتفرم معتبر با مسابقات ترید و بونوس‌های دوره‌ای"),
+        BrokerItem("spectre_ai", "Spectre.ai", "اسپکتر دیفای", "تا ۹۰٪", true, "بلاکچینی", "$1", "غیرمتمرکز (DeFi)", "بدون بروکر واسط", "قراردادهای هوشمند بدون نیاز به واریز به حساب بروکر"),
+        BrokerItem("race_option", "RaceOption", "ریس آپشن", "تا ۹۵٪", true, "برداشت ۱ ساعته", "$250", "پشتیبانی VIP", "برداشت سریع", "پشتیبانی زنده ویدیویی و بانس‌های خوش‌آمدگویی"),
+        BrokerItem("close_option", "CloseOption", "کلوز آپشن", "تا ۸۵٪", true, "استاندارد", "$5", "سازگار با ایران", "پشتیبانی ریالی", "پذیرش کاربران ایرانی با احراز هویت آسان"),
+        BrokerItem("videforex", "Videforex", "ویدفارکس", "تا ۹۵٪", true, "پخش زنده", "$250", "لایو ۲۴/۷", "معاملات همزمان", "ترکیب معاملات باینری آپشن و فارکس آنلاین"),
+        BrokerItem("binary_cent", "BinaryCent", "باینری سنت", "تا ۹۵٪", true, "میکرو سنت", "$250", "حساب سنتی", "ریسک بسیار پایین", "امکان معامله از ۱۰ سنت در هر ترید"),
+        BrokerItem("bullex", "Bullex", "بولکس", "تا ۹۲٪", true, "فوری", "$10", "فعال", "جدید و چابک", "پلتفرم بهینه‌سازی‌شده برای بازارهای پرنوسان OTC"),
+        BrokerItem("cme_events", "CME Event Contracts", "قراردادهای بورس شیکاگو CME", "تا ۸۴٪", false, "تنظیم‌شده CFTC", "$100", "بورس نیویورک/شیکاگو", "ابزار نهادی", "قراردادهای باینری شاخص‌های S&P500 و طلا و نفت"),
+        BrokerItem("dukascopy", "Dukascopy Binary", "دوکاسکوپی بانک سوئیس", "تا ۸۸٪", false, "حفاظت بانکی", "$1000", "نظارت FINMA سوئیس", "امنیت بانکی", "ارائه آپشن‌های باینری تحت نظارت عالی بانکی اروپا")
+    )
+
+    fun initializeSeedData(scope: CoroutineScope) {
+        scope.launch(Dispatchers.IO) {
+            // Seed admin if not present
+            val adminUser = db.userDao().getUserByEmail("admin@iranbinary.ir")
+            if (adminUser == null) {
+                db.userDao().insertUser(
+                    UserEntity(
+                        email = "admin@iranbinary.ir",
+                        passwordHash = "IranBinaryAdmin2026!",
+                        fullName = "مدیریت ارشد ایران باینری آپشن",
+                        role = "ADMIN",
+                        activePlan = "یک ساله",
+                        planExpiryTimestamp = System.currentTimeMillis() + 365L * 24 * 60 * 60 * 1000,
+                        loginProvider = "MANUAL"
+                    )
+                )
+            }
+
+            // Seed 5 Plans if empty
+            if (db.planDao().getCount() == 0) {
+                db.planDao().insertAll(
+                    listOf(
+                        PlanEntity(
+                            title = "اشتراک آزمایشی هفتگی",
+                            durationText = "۱ هفته‌ای (۷ روز)",
+                            durationDays = 7,
+                            priceToman = "۳۹۰,۰۰۰ تومان",
+                            priceUsdt = "7.5 USDT",
+                            discountPercent = 0,
+                            isPopular = false,
+                            features = "دسترسی به تمام سیگنال‌های لایو OTC و فارکس,تایم‌فریم‌های ۱ و ۵ دقیقه,اعلان فوری در اپلیکیشن,پشتیبانی ۲۴ ساعته",
+                            badge = "تست و ارزیابی"
+                        ),
+                        PlanEntity(
+                            title = "اشتراک استاندارد ماهانه",
+                            durationText = "۱ ماهه (۳۰ روز)",
+                            durationDays = 30,
+                            priceToman = "۱,۱۹۰,۰۰۰ تومان",
+                            priceUsdt = "22.0 USDT",
+                            discountPercent = 15,
+                            isPopular = true,
+                            features = "دسترسی نامحدود به سیگنال‌های باینری آپشن,پوشش ۱۵ بروکر اختصاصی,تحلیل چندلایه AI1 Strategist,فیلتر هوشمند NO TRADE,دسترسی به کانال تلگرام VIP",
+                            badge = "محبوب‌ترین انتخاب"
+                        ),
+                        PlanEntity(
+                            title = "اشتراک الیت سه ماهه",
+                            durationText = "۳ ماهه (۹۰ روز)",
+                            durationDays = 90,
+                            priceToman = "۲,۸۹۰,۰۰۰ تومان",
+                            priceUsdt = "55.0 USDT",
+                            discountPercent = 25,
+                            isPopular = false,
+                            features = "تمامی امکانات پلن ماهانه,تخفیف ۲۵ درصدی فصلی,وبینارهای اختصاصی هفتگی مدیریت ریسک,ژورنال هوشمند ثبت معاملات,پشتیبانی تلفنی مستقیم",
+                            badge = "ارزش اقتصادی بالا"
+                        ),
+                        PlanEntity(
+                            title = "اشتراک نیم‌ساله VIP",
+                            durationText = "۶ ماهه (۱۸۰ روز)",
+                            durationDays = 180,
+                            priceToman = "۴,۹۹۰,۰۰۰ تومان",
+                            priceUsdt = "95.0 USDT",
+                            discountPercent = 35,
+                            isPopular = false,
+                            features = "دسترسی ۶ ماهه به سیگنال‌های هوش مصنوعی,مشاوره اختصاصی تخصیص سرمایه (Position Sizing),تنظیم استراتژی شخصی بدون مارتینگل,اولویت پاسخگویی تیکت‌های VIP",
+                            badge = "ویژه حرفه‌ای‌ها"
+                        ),
+                        PlanEntity(
+                            title = "اشتراک سالانه آلتیمیت",
+                            durationText = "۱ ساله (۳۶۵ روز)",
+                            durationDays = 365,
+                            priceToman = "۸,۴۹۰,۰۰۰ تومان",
+                            priceUsdt = "160.0 USDT",
+                            discountPercent = 50,
+                            isPopular = false,
+                            features = "دسترسی کامل ۳۶۵ روزه با ۵۰٪ تخفیف طلایی,کلید دسترسی مستقیم API سیگنال‌ها,پکیج کامل دوره آموزشی صفر تا صد باینری آپشن,ممیزی هفتگی ژورنال معاملات با AI3 Governor",
+                            badge = "تخفیف استثنایی ۵۰٪"
+                        )
+                    )
+                )
+            }
+
+            // Seed Signals if empty
+            if (db.signalDao().getCount() == 0) {
+                db.signalDao().insertAll(
+                    listOf(
+                        SignalEntity(
+                            asset = "EUR/USD (OTC)",
+                            category = "OTC",
+                            direction = "CALL",
+                            strikePrice = "1.08420",
+                            currentPrice = "1.08425",
+                            expiry = "1m",
+                            payoutRate = "۹۳٪",
+                            marketRegime = "روند صعودی پرقدرت (Bullish Trend)",
+                            confidenceScore = 88,
+                            riskScore = "کم ریسک (Low)",
+                            vetoStatus = "تایید شده",
+                            rationale = "شکست پول‌بک در حمایت معتبر M1 به همراه واگرایی مثبت استوکاستیک و افزایش حجم سفارش‌های خرید در بروکر Quotex و Pocket Option.",
+                            recommendedBrokers = "Quotex, Pocket Option, Deriv",
+                            status = "ACTIVE"
+                        ),
+                        SignalEntity(
+                            asset = "BTC/USDT",
+                            category = "CRYPTO",
+                            direction = "PUT",
+                            strikePrice = "64,320.00",
+                            currentPrice = "64,310.50",
+                            expiry = "5m",
+                            payoutRate = "۸۹٪",
+                            marketRegime = "برگشت از سقف رنج (Range Reversal)",
+                            confidenceScore = 84,
+                            riskScore = "متوسط (Medium)",
+                            vetoStatus = "تایید شده",
+                            rationale = "برخورد به باند بالایی بولینگر و اشباع خرید شدید در RSI(14) با تاییده کندل چکش معکوس در تایم‌فریم ۵ دقیقه‌ای.",
+                            recommendedBrokers = "Pocket Option, IQ Option, Spectre.ai",
+                            status = "ACTIVE"
+                        ),
+                        SignalEntity(
+                            asset = "GBP/JPY (OTC)",
+                            category = "OTC",
+                            direction = "NO_TRADE",
+                            strikePrice = "196.450",
+                            currentPrice = "196.448",
+                            expiry = "3m",
+                            payoutRate = "۹۲٪",
+                            marketRegime = "فشردگی نوسان بدون جهت (Compression)",
+                            confidenceScore = 42,
+                            riskScore = "بالا (High Risk)",
+                            vetoStatus = "وتو شده توسط AI2 Risk Architect",
+                            rationale = "طبق اصل No Trade پلتفرم ایران باینری آپشن: اسپرد مشکوک و نبود مومنتوم کافی در آستانه انتشار گزارش بانکی ژاپن.",
+                            recommendedBrokers = "تمامی بروکرها متوقف شود",
+                            status = "NO_TRADE"
+                        ),
+                        SignalEntity(
+                            asset = "GOLD (XAU/USD)",
+                            category = "COMMODITIES",
+                            direction = "CALL",
+                            strikePrice = "2,518.30",
+                            currentPrice = "2,519.10",
+                            expiry = "3m",
+                            payoutRate = "۸۸٪",
+                            marketRegime = "شکست صعودی مقاومت (Breakout)",
+                            confidenceScore = 91,
+                            riskScore = "کنترل‌شده (Controlled)",
+                            vetoStatus = "تایید شده",
+                            rationale = "تثبیت کندل ۳ دقیقه‌ای بالای ناحیه مقاومتی ۲۵۱۸ با حمایت متحرک EMA 20 و تایید شاخص ATR.",
+                            recommendedBrokers = "Quotex, Nadex, ExpertOption",
+                            status = "WON"
+                        ),
+                        SignalEntity(
+                            asset = "USD/CAD",
+                            category = "FOREX",
+                            direction = "PUT",
+                            strikePrice = "1.34890",
+                            currentPrice = "1.34860",
+                            expiry = "1m",
+                            payoutRate = "۹۴٪",
+                            marketRegime = "مومنتوم نزولی شتاب‌دار (Momentum Expansion)",
+                            confidenceScore = 86,
+                            riskScore = "کم ریسک (Low)",
+                            vetoStatus = "تایید شده",
+                            rationale = "شکست کف ماژور همراه با عدم تعادل سفارشات فروش نهادی و افزایش نرخ دلار کانادا.",
+                            recommendedBrokers = "Pocket Option, Deriv, Olymp Trade",
+                            status = "WON"
+                        )
+                    )
+                )
+            }
+
+            // Seed News if empty
+            if (db.newsDao().getCount() == 0) {
+                db.newsDao().insertAll(
+                    listOf(
+                        NewsEntity(
+                            title = "بررسی عملکرد الگوریتم‌های OTC در تعطیلات آخر هفته بروکرها",
+                            category = "OTC",
+                            summary = "تحلیلگران نوسانات اسپرد و نحوه تولید قیمت در سرورهای بروکر کوتکس و پوکت آپشن را در ساعات OTC بررسی کردند.",
+                            fullContent = "بازارهای OTC یا Over The Counter در باینری آپشن بر اساس الگوریتم‌های داخلی و فیدهای تجمیعی قیمت‌گذاری می‌شوند. در پلتفرم ایران باینری آپشن، سیستم هوش مصنوعی ما به صورت ۲۴ ساعته جریان قیمت را از طریق مقایسه میکروثانیه‌ای ممیزی می‌کند تا از ورود در شرایط با نوسان غیرطبیعی جلوگیری کند.",
+                            source = "پایگاه ممیزی OTC ایران باینری",
+                            impact = "HIGH",
+                            sentiment = "صعودی (Bullish)",
+                            timeAgo = "۱ ساعت پیش"
+                        ),
+                        NewsEntity(
+                            title = "تصمیمات نرخ بهره فدرال رزرو و تاثیر آن بر تایم‌فریم‌های ۱ تا ۵ دقیقه فارکس",
+                            category = "FOREX",
+                            summary = "افزایش احتمالی گمانه‌زنی‌ها پیرامون کاهش نرخ بهره و نوسان جهشی جفت ارزهای EUR/USD و USD/JPY در قراردادهای انقضای کوتاه.",
+                            fullContent = "با نزدیک شدن به جلسات کمیته بازار باز فدرال رزرو، نوسانات ضمنی (Implied Volatility) در بازار مشتقات ارزی به اوج رسیده است. استراتژیست‌های پلتفرم توصیه می‌کنند در ۱۰ دقیقه قبل و بعد از بیانیه‌ها، به علت فعال شدن اصل No Trade از ورود به قراردادهای ۱ دقیقه‌ای پرهیز شود.",
+                            source = "رویترز مارکتس",
+                            impact = "HIGH",
+                            sentiment = "خنثی (Neutral)",
+                            timeAgo = "۲ ساعت پیش"
+                        ),
+                        NewsEntity(
+                            title = "روند تثبیت بیت‌کوین در کانال ۶۴ هزار دلار و فرصت‌های ترید باینری در آلتکوین‌ها",
+                            category = "CRYPTO",
+                            summary = "شاخص ترس و طمع به فاز خنثی بازگشت؛ افزایش تقاضا برای قراردادهای ۳ و ۵ دقیقه‌ای اتریوم و سولانا.",
+                            fullContent = "در معاملات ۲۴ ساعته کریپتو، تثبیت قیمت پادشاه رمزارزها باعث تشکیل الگوهای مستطیل در تایم‌فریم‌های پایین شده است. بروکرهایی نظیر Deriv و Spectre.ai با ارائه بازدهی بالای ۹۰ درصد در کریپتو، حجم قابل توجهی از سفارشات خرد را به ثبت رسانده‌اند.",
+                            source = "بلومبرگ کریپتو فارسی",
+                            impact = "MEDIUM",
+                            sentiment = "صعودی (Bullish)",
+                            timeAgo = "۳ ساعت پیش"
+                        ),
+                        NewsEntity(
+                            title = "گزارش تحلیلی ESMA و قوانین جدید اتحادیه اروپا در سال ۲۰۲۶ درباره باینری آپشن",
+                            category = "MACRO",
+                            summary = "نهاد ناظر اروپایی بر شفافیت کامل ساختار پرداخت (Payout) و آگاهی کاربران از ریسک واقعی معاملات تاکید کرد.",
+                            fullContent = "نهاد ESMA در جدیدترین گزارش خود به پلتفرم‌های ارائه‌دهنده مشتقات دوحالته اعلام کرده که اعلام درصد برد تضمینی غیرقانونی است. پلتفرم Iran Binary Option Trading Signals با افتخار به عنوان پلتفرمی شفاف، با رد کامل هرگونه تضمین و تکیه بر مدیریت سرمایه ریاضی‌محور فعالیت می‌نماید.",
+                            source = "دیده‌بان نظارتی ESMA",
+                            impact = "LOW",
+                            sentiment = "خنثی (Neutral)",
+                            timeAgo = "۴ ساعت پیش"
+                        )
+                    )
+                )
+            }
+        }
+    }
+
+    suspend fun authenticateUser(email: String, pass: String): UserEntity? {
+        val cleanEmail = email.trim().lowercase()
+        // Support either exact email or 'admin'
+        val user = if (cleanEmail == "admin") {
+            db.userDao().getUserByEmail("admin@iranbinary.ir")
+        } else {
+            db.userDao().getUserByEmail(cleanEmail)
+        }
+
+        return if (user != null && user.passwordHash == pass) {
+            _currentUser.value = user
+            user
+        } else {
+            null
+        }
+    }
+
+    suspend fun registerUser(email: String, pass: String, name: String): UserEntity {
+        val cleanEmail = email.trim().lowercase()
+        val existing = db.userDao().getUserByEmail(cleanEmail)
+        if (existing != null) return existing
+
+        val newUser = UserEntity(
+            email = cleanEmail,
+            passwordHash = pass,
+            fullName = name,
+            role = "USER",
+            activePlan = "رایگان",
+            loginProvider = "MANUAL"
+        )
+        val id = db.userDao().insertUser(newUser)
+        val created = newUser.copy(id = id)
+        _currentUser.value = created
+        return created
+    }
+
+    fun quickSocialLogin(provider: String, name: String, email: String, scope: CoroutineScope) {
+        scope.launch(Dispatchers.IO) {
+            val cleanEmail = email.trim().lowercase()
+            var user = db.userDao().getUserByEmail(cleanEmail)
+            if (user == null) {
+                val newUser = UserEntity(
+                    email = cleanEmail,
+                    passwordHash = "SOCIAL_OAUTH",
+                    fullName = name,
+                    role = "USER",
+                    activePlan = "یک هفته‌ای (هدیه ورود)",
+                    planExpiryTimestamp = System.currentTimeMillis() + 7L * 24 * 60 * 60 * 1000,
+                    loginProvider = provider
+                )
+                val id = db.userDao().insertUser(newUser)
+                user = newUser.copy(id = id)
+            }
+            _currentUser.value = user
+        }
+    }
+
+    fun logout() {
+        _currentUser.value = null
+    }
+
+    suspend fun updatePassword(userId: Long, newPass: String): Boolean {
+        val user = _currentUser.value ?: return false
+        val updated = user.copy(passwordHash = newPass)
+        db.userDao().updateUser(updated)
+        _currentUser.value = updated
+        return true
+    }
+
+    suspend fun addNewStaff(email: String, pass: String, name: String, role: String): Boolean {
+        val newUser = UserEntity(
+            email = email.trim().lowercase(),
+            passwordHash = pass,
+            fullName = name,
+            role = role,
+            activePlan = "یک ساله سازمانی",
+            loginProvider = "MANUAL"
+        )
+        db.userDao().insertUser(newUser)
+        return true
+    }
+
+    suspend fun addSignal(signal: SignalEntity): Long {
+        return db.signalDao().insertSignal(signal)
+    }
+
+    suspend fun updateSignal(signal: SignalEntity) {
+        db.signalDao().updateSignal(signal)
+    }
+
+    suspend fun deleteSignal(id: Long) {
+        db.signalDao().deleteSignalById(id)
+    }
+
+    suspend fun addNews(news: NewsEntity): Long {
+        return db.newsDao().insertNews(news)
+    }
+
+    suspend fun deleteNews(id: Long) {
+        db.newsDao().deleteNewsById(id)
+    }
+
+    suspend fun updatePlan(plan: PlanEntity) {
+        db.planDao().updatePlan(plan)
+    }
+
+    suspend fun upgradeUserPlan(planTitle: String, days: Int) {
+        val user = _currentUser.value ?: return
+        val expiry = System.currentTimeMillis() + days.toLong() * 24 * 60 * 60 * 1000
+        val updated = user.copy(activePlan = planTitle, planExpiryTimestamp = expiry)
+        db.userDao().updateUser(updated)
+        _currentUser.value = updated
+    }
+
+    suspend fun updateUser(user: UserEntity) {
+        db.userDao().updateUser(user)
+    }
+
+    suspend fun registerOrLoginSocial(provider: String, name: String, email: String): UserEntity {
+        val cleanEmail = email.trim().lowercase()
+        var user = db.userDao().getUserByEmail(cleanEmail)
+        if (user == null) {
+            val newUser = UserEntity(
+                email = cleanEmail,
+                passwordHash = "SOCIAL_OAUTH",
+                fullName = name,
+                role = "USER",
+                activePlan = "یک هفته‌ای (هدیه ورود)",
+                planExpiryTimestamp = System.currentTimeMillis() + 7L * 24 * 60 * 60 * 1000,
+                loginProvider = provider
+            )
+            val id = db.userDao().insertUser(newUser)
+            user = newUser.copy(id = id)
+        }
+        _currentUser.value = user
+        return user
+    }
+
+    // AI Assistant helper for Editor / Staff in Admin Panel
+    fun runAiEditorAgent(prompt: String): String {
+        val lower = prompt.lowercase()
+        return when {
+            "سیگنال" in lower || "signal" in lower -> {
+                "🤖 دستیار هوش مصنوعی ایران باینری:\nسیگنال جدید پیشنهادی بر اساس شرایط فعلی بازار:\n• دارایی: EUR/USD (OTC)\n• جهت: CALL (خرید / بالا)\n• زمان انقضا: 1 دقیقه\n• قیمت استرایک: 1.08510\n• رژیم بازار: شکست صعودی تثبیت‌شده\n• درصد اعتماد: 90%\n• رتبه ریسک: کم\n• بروکرهای بهینه: Quotex, Pocket Option\n• تحلیل: افزایش مومنتوم خرید پس از تست موفقیت‌آمیز حمایت M5."
+            }
+            "تحلیل" in lower || "اخبار" in lower || "news" in lower -> {
+                "🤖 دستیار هوش مصنوعی ایران باینری:\nپیش‌نویس خبر فاندامنتال یک‌ساعته برای انتشار:\nعنوان: تداوم فاز رنج بیت‌کوین در آستانه گشایش بازار نیویورک\nدسته‌بندی: CRYPTO\nخلاصه: نوسانات شاخص نوسان واقعی (ATR) در کف چند روزه نشان از آمادگی بازار برای یک Breakout قدرتمند در سشن عصرگاهی دارد. معامله‌گران باینری از قراردادهای ۵ دقیقه‌ای رنج بهره‌مند شوند."
+            }
+            "ریسک" in lower || "مدیریت" in lower -> {
+                "🤖 دستیار هوش مصنوعی ایران باینری:\nتوصیه معماری AI2 Risk Architect:\n۱. سقف مواجهه روزانه: حداکثر ۳٪ کل بالانس در هر نشست\n۲. وتو قطعی مارتینگل: افزایش حجم دوبرابری مساوی با شکست ریاضی است\n۳. حداقل نرخ برد سربه‌سر برای Payout 92% برابر است با: L/(P+L) = 1/(0.92+1) = 52.08%."
+            }
+            else -> {
+                "🤖 دستیار هوش مصنوعی ایران باینری:\nدستور شما برای بهینه‌سازی سامانه ثبت گردید. آماده تولید سیگنال‌های اتوماتیک، نگارش مقالات سئو برای بازارهای OTC و فارکس، و بررسی یکپارچگی پایگاه داده."
+            }
+        }
+    }
+
+    companion object {
+        @Volatile
+        private var INSTANCE: TradingRepository? = null
+
+        fun getInstance(context: Context): TradingRepository {
+            return INSTANCE ?: synchronized(this) {
+                val db = AppDatabase.getInstance(context)
+                val instance = TradingRepository(db)
+                INSTANCE = instance
+                instance
+            }
+        }
+    }
+}

@@ -1,0 +1,290 @@
+package com.example.ui.components
+
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoGraph
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.ui.theme.AmberGold
+import com.example.ui.theme.CardSurface
+import com.example.ui.theme.CyanGlow
+import com.example.ui.theme.CyanNeon
+import com.example.ui.theme.EmeraldDark
+import com.example.ui.theme.EmeraldGlow
+import com.example.ui.theme.EmeraldNeon
+import com.example.ui.theme.GoldGlow
+import com.example.ui.theme.SlateDark800
+import com.example.ui.theme.SlateDark900
+import com.example.ui.theme.TextPrimary
+import com.example.ui.theme.TextSecondary
+
+@Composable
+fun BrandLogomotion(
+    modifier: Modifier = Modifier,
+    compact: Boolean = false,
+    showMotto: Boolean = true
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "logomotion")
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(12000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "rotation"
+    )
+
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 0.95f,
+        targetValue = 1.05f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulse"
+    )
+
+    val glowAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 0.9f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "glow"
+    )
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        SlateDark900.copy(alpha = 0.95f),
+                        CardSurface
+                    )
+                )
+            )
+            .border(
+                1.dp,
+                Brush.horizontalGradient(
+                    listOf(
+                        EmeraldNeon.copy(alpha = 0.4f),
+                        CyanNeon.copy(alpha = 0.6f),
+                        AmberGold.copy(alpha = 0.4f)
+                    )
+                ),
+                RoundedCornerShape(20.dp)
+            )
+            .padding(if (compact) 12.dp else 20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        // Logomotion visual centerpiece
+        Box(
+            modifier = Modifier.size(if (compact) 72.dp else 104.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            // Rotating cyber radar circles
+            Canvas(
+                modifier = Modifier
+                    .size(if (compact) 72.dp else 104.dp)
+                    .rotate(rotation)
+            ) {
+                val strokeWidth = 2.dp.toPx()
+                drawCircle(
+                    brush = Brush.sweepGradient(
+                        listOf(
+                            EmeraldNeon.copy(alpha = glowAlpha),
+                            CyanNeon.copy(alpha = 0.1f),
+                            AmberGold.copy(alpha = glowAlpha),
+                            EmeraldNeon.copy(alpha = glowAlpha)
+                        )
+                    ),
+                    style = Stroke(width = strokeWidth)
+                )
+
+                // Dashed nodes
+                drawCircle(
+                    color = EmeraldNeon,
+                    radius = 4.dp.toPx(),
+                    center = Offset(size.width / 2, 2.dp.toPx())
+                )
+                drawCircle(
+                    color = CyanNeon,
+                    radius = 4.dp.toPx(),
+                    center = Offset(size.width - 2.dp.toPx(), size.height / 2)
+                )
+            }
+
+            // Counter-rotating inner ring
+            Canvas(
+                modifier = Modifier
+                    .size(if (compact) 56.dp else 84.dp)
+                    .rotate(-rotation * 1.5f)
+            ) {
+                drawCircle(
+                    brush = Brush.sweepGradient(
+                        listOf(
+                            CyanNeon.copy(alpha = 0.7f),
+                            Color.Transparent,
+                            EmeraldNeon.copy(alpha = 0.7f)
+                        )
+                    ),
+                    style = Stroke(width = 1.5.dp.toPx())
+                )
+            }
+
+            // Core hexagon badge
+            Box(
+                modifier = Modifier
+                    .size(if (compact) 44.dp else 64.dp)
+                    .scale(pulseScale)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.radialGradient(
+                            listOf(
+                                EmeraldDark,
+                                SlateDark800
+                            )
+                        )
+                    )
+                    .border(1.5.dp, GoldGlow.copy(alpha = 0.8f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.AutoGraph,
+                    contentDescription = "Iran Binary Option Logo",
+                    tint = EmeraldGlow,
+                    modifier = Modifier.size(if (compact) 24.dp else 36.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Brand Name (Persian)
+        Text(
+            text = "ایران باینری آپشن",
+            style = MaterialTheme.typography.titleLarge.copy(
+                fontWeight = FontWeight.Black,
+                fontSize = if (compact) 18.sp else 22.sp,
+                letterSpacing = 0.5.sp
+            ),
+            color = TextPrimary,
+            textAlign = TextAlign.Center
+        )
+
+        // Sub-Brand with capitalized initials: "Trading Signals"
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(top = 2.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(EmeraldDark.copy(alpha = 0.6f))
+                    .border(0.8.dp, EmeraldNeon.copy(alpha = 0.7f), RoundedCornerShape(6.dp))
+                    .padding(horizontal = 8.dp, vertical = 2.dp)
+            ) {
+                Text(
+                    text = "Trading Signals",
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 1.5.sp,
+                        fontSize = if (compact) 11.sp else 13.sp
+                    ),
+                    color = CyanGlow
+                )
+            }
+        }
+
+        if (showMotto) {
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Primary Official Slogan
+            Text(
+                text = "اولین و تنها پلتفرم رسمی ارائه‌دهنده سیگنال‌های معاملاتی به سبک ترید باینری آپشن",
+                style = MaterialTheme.typography.bodySmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = if (compact) 11.sp else 12.sp,
+                    lineHeight = 18.sp
+                ),
+                color = AmberGold,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 8.dp)
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Secondary Philosophy Motto
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(30.dp))
+                    .background(SlateDark800.copy(alpha = 0.8f))
+                    .padding(horizontal = 12.dp, vertical = 4.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Shield,
+                    contentDescription = null,
+                    tint = EmeraldNeon,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "تحلیل قبل از تصمیم، ریسک قبل از معامله",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 11.sp
+                    ),
+                    color = TextSecondary
+                )
+            }
+        }
+    }
+}
