@@ -6,6 +6,8 @@ import com.example.data.local.AppDatabase
 import com.example.data.local.NewsEntity
 import com.example.data.local.SignalEntity
 import com.example.data.local.UserSubscriptionEntity
+import com.example.fcm.FcmNotificationHelper
+import com.example.fcm.FcmSignalBroadcaster
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreSettings
 import com.google.firebase.firestore.ListenerRegistration
@@ -45,6 +47,7 @@ class FirestoreOfflineCacheManager(
     private val TAG = "FirestoreOfflineCache"
 
     private val firestore: FirebaseFirestore by lazy {
+        com.example.fcm.FirebaseAppInitializer.ensureInitialized(context)
         val instance = FirebaseFirestore.getInstance()
         try {
             // Configure modern persistent offline cache in Firestore SDK
@@ -375,6 +378,14 @@ class FirestoreOfflineCacheManager(
         } catch (e: Exception) {
             Log.w(TAG, "Failed to upload signal to Firestore (retained in Room): ${e.message}")
         }
+
+        // Broadcast high-accuracy push notification via FCM and notify local device
+        try {
+            FcmSignalBroadcaster.broadcastHighAccuracySignal(context, actualSignal)
+        } catch (fcmEx: Exception) {
+            Log.e(TAG, "Error triggering FCM notification for signal: ${fcmEx.message}")
+        }
+
         generatedId
     }
 

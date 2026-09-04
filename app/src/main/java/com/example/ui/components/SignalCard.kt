@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Psychology
+import androidx.compose.material.icons.filled.ReportProblem
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Card
@@ -69,7 +70,8 @@ import com.example.ui.theme.TextSecondary
 fun SignalCard(
     signal: SignalEntity,
     modifier: Modifier = Modifier,
-    onBrokerClick: ((String) -> Unit)? = null
+    onBrokerClick: ((String) -> Unit)? = null,
+    onReportClick: ((SignalEntity) -> Unit)? = null
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -344,6 +346,36 @@ fun SignalCard(
                         ),
                         color = TextPrimary
                     )
+
+                    if (onReportClick != null) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(SlateDark800)
+                                .clickable { onReportClick(signal) }
+                                .padding(horizontal = 10.dp, vertical = 7.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ReportProblem,
+                                contentDescription = null,
+                                tint = AmberGold,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "گزارش عدم انطباق یا ارسال بازخورد برای این سیگنال",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium
+                                ),
+                                color = AmberGold
+                            )
+                        }
+                    }
                 }
             }
         }

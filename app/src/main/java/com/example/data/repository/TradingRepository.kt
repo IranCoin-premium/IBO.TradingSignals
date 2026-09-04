@@ -40,12 +40,25 @@ class TradingRepository(
     val allSignals: Flow<List<SignalEntity>> = db.signalDao().getAllSignals()
     val historicalSignals: Flow<List<SignalEntity>> = db.signalDao().getHistoricalSignals()
     val activeSignals: Flow<List<SignalEntity>> = db.signalDao().getActiveSignals()
+    val wonCount: Flow<Int> = db.signalDao().getWonCountFlow()
+    val lostCount: Flow<Int> = db.signalDao().getLostCountFlow()
+    val vetoCount: Flow<Int> = db.signalDao().getVetoCountFlow()
     val allNews: Flow<List<NewsEntity>> = db.newsDao().getAllNews()
     val highImpactNews: Flow<List<NewsEntity>> = db.newsDao().getHighImpactNews()
     val allPlans: Flow<List<PlanEntity>> = db.planDao().getAllPlans()
     val allAdmins: Flow<List<UserEntity>> = db.userDao().getAllAdminsAndStaff()
     val allSubscriptions: Flow<List<UserSubscriptionEntity>> = db.userSubscriptionDao().getAllSubscriptions()
+    val allFeedback: Flow<List<com.example.data.local.FeedbackEntity>> = db.feedbackDao().getAllFeedback()
+    val feedbackCount: Flow<Int> = db.feedbackDao().getFeedbackCount()
     val offlineCacheStatus: StateFlow<OfflineCacheSyncStatus> = offlineCacheManager.syncStatus
+
+    suspend fun submitFeedback(feedback: com.example.data.local.FeedbackEntity): Long {
+        return db.feedbackDao().insertFeedback(feedback)
+    }
+
+    suspend fun deleteFeedback(id: Long) {
+        db.feedbackDao().deleteFeedback(id)
+    }
 
     // 15+ Binary Option Brokers & Exchanges
     val binaryBrokers: List<BrokerItem> = listOf(
@@ -230,7 +243,93 @@ class TradingRepository(
                             vetoStatus = "تایید شده",
                             rationale = "شکست کف ماژور همراه با عدم تعادل سفارشات فروش نهادی و افزایش نرخ دلار کانادا.",
                             recommendedBrokers = "Pocket Option, Deriv, Olymp Trade",
-                            status = "WON"
+                            status = "WON",
+                            timestamp = System.currentTimeMillis() - 25 * 60 * 1000L
+                        ),
+                        SignalEntity(
+                            asset = "AUD/USD (OTC)",
+                            category = "OTC",
+                            direction = "CALL",
+                            strikePrice = "0.66240",
+                            currentPrice = "0.66258",
+                            expiry = "1m",
+                            payoutRate = "۹۵٪",
+                            marketRegime = "واگرایی صعودی RSI در کف",
+                            confidenceScore = 90,
+                            riskScore = "کم ریسک",
+                            vetoStatus = "تایید شده",
+                            rationale = "برخورد به حمایت تکنیکال در کف روزانه بروکر پاکت آپشن با تایید پرایس اکشن پین‌بار صعودی.",
+                            recommendedBrokers = "Pocket Option, Quotex",
+                            status = "WON",
+                            timestamp = System.currentTimeMillis() - 75 * 60 * 1000L
+                        ),
+                        SignalEntity(
+                            asset = "ETH/USDT",
+                            category = "CRYPTO",
+                            direction = "CALL",
+                            strikePrice = "3,480.20",
+                            currentPrice = "3,481.90",
+                            expiry = "5m",
+                            payoutRate = "۸۷٪",
+                            marketRegime = "شکست پرقدرت مقاومت M5",
+                            confidenceScore = 85,
+                            riskScore = "متوسط",
+                            vetoStatus = "تایید شده",
+                            rationale = "کندل ماروبوزو سبز روی میانگین متحرک نمایی ۲۰ روزه همراه با افزایش حجم قراردادهای دریو.",
+                            recommendedBrokers = "Deriv, Spectre.ai, Pocket Option",
+                            status = "WON",
+                            timestamp = System.currentTimeMillis() - 140 * 60 * 1000L
+                        ),
+                        SignalEntity(
+                            asset = "EUR/GBP",
+                            category = "FOREX",
+                            direction = "PUT",
+                            strikePrice = "0.85430",
+                            currentPrice = "0.85445",
+                            expiry = "1m",
+                            payoutRate = "۹۰٪",
+                            marketRegime = "فشار فروش مقاومت ماژور",
+                            confidenceScore = 79,
+                            riskScore = "متوسط",
+                            vetoStatus = "تایید شده",
+                            rationale = "برخورد به سقف کانال رنج و تشکیل سایه بالایی بلند در کندل قبلی؛ اما نوسان اسپرد باعث بسته شدن با اختلاف ناچیز شد.",
+                            recommendedBrokers = "Quotex, Olymp Trade",
+                            status = "LOST",
+                            timestamp = System.currentTimeMillis() - 210 * 60 * 1000L
+                        ),
+                        SignalEntity(
+                            asset = "US CRUDE OIL (نفت WTI)",
+                            category = "COMMODITIES",
+                            direction = "CALL",
+                            strikePrice = "74.85",
+                            currentPrice = "75.12",
+                            expiry = "5m",
+                            payoutRate = "۸۶٪",
+                            marketRegime = "روند شتاب‌دار صعودی سشن لندن",
+                            confidenceScore = 93,
+                            riskScore = "کم ریسک",
+                            vetoStatus = "تایید شده",
+                            rationale = "جهش تقاضا پس از اعلام گزارش ذخایر انرژی با تشکیل الگوی ادامه‌دهنده پرچم در M5.",
+                            recommendedBrokers = "Nadex, Quotex, ExpertOption",
+                            status = "WON",
+                            timestamp = System.currentTimeMillis() - 320 * 60 * 1000L
+                        ),
+                        SignalEntity(
+                            asset = "USD/JPY",
+                            category = "FOREX",
+                            direction = "NO_TRADE",
+                            strikePrice = "154.200",
+                            currentPrice = "154.180",
+                            expiry = "1m",
+                            payoutRate = "۹۱٪",
+                            marketRegime = "نوسانات شدید در آستانه سخنرانی BoJ",
+                            confidenceScore = 38,
+                            riskScore = "فوق‌العاده پرریسک",
+                            vetoStatus = "وتو شده قطعی",
+                            rationale = "عدم تعادل و احتمال مداخله ارزی بانک مرکزی ژاپن، دستور توقف ترید برای جلوگیری از ضرر صادر شد.",
+                            recommendedBrokers = "هیچ بروکری مجاز نیست",
+                            status = "NO_TRADE",
+                            timestamp = System.currentTimeMillis() - 440 * 60 * 1000L
                         )
                     )
                 )
@@ -419,6 +518,14 @@ class TradingRepository(
 
     suspend fun deleteSignal(id: Long) {
         offlineCacheManager.deleteCachedSignal(id)
+    }
+
+    suspend fun clearHistoricalSignals() {
+        db.signalDao().clearHistory()
+    }
+
+    fun searchHistoricalSignals(query: String): Flow<List<SignalEntity>> {
+        return db.signalDao().searchHistoricalSignals(query)
     }
 
     suspend fun addNews(news: NewsEntity): Long {

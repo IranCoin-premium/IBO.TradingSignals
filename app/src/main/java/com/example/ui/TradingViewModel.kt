@@ -29,6 +29,15 @@ class TradingViewModel(application: Application) : AndroidViewModel(application)
     val historicalSignals: StateFlow<List<SignalEntity>> = repository.historicalSignals
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val wonCount: StateFlow<Int> = repository.wonCount
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val lostCount: StateFlow<Int> = repository.lostCount
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val vetoCount: StateFlow<Int> = repository.vetoCount
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
     val activeSignals: StateFlow<List<SignalEntity>> = repository.activeSignals
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -43,6 +52,12 @@ class TradingViewModel(application: Application) : AndroidViewModel(application)
 
     val staffList: StateFlow<List<UserEntity>> = repository.allAdmins
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val feedbacks: StateFlow<List<com.example.data.local.FeedbackEntity>> = repository.allFeedback
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val feedbackCount: StateFlow<Int> = repository.feedbackCount
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     val offlineCacheStatus: StateFlow<OfflineCacheSyncStatus> = repository.offlineCacheStatus
 
@@ -141,6 +156,12 @@ class TradingViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun clearHistoricalSignals() {
+        viewModelScope.launch {
+            repository.clearHistoricalSignals()
+        }
+    }
+
     fun updateSignalStatus(signal: SignalEntity, status: String) {
         viewModelScope.launch {
             repository.updateSignal(signal.copy(status = status))
@@ -193,6 +214,62 @@ class TradingViewModel(application: Application) : AndroidViewModel(application)
     fun deleteNews(id: Long) {
         viewModelScope.launch {
             repository.deleteNews(id)
+        }
+    }
+
+    fun submitFeedback(
+        feedbackType: String,
+        asset: String?,
+        signalId: Long?,
+        reasonCategory: String?,
+        description: String,
+        rating: Int,
+        contactInfo: String?,
+        onComplete: (Boolean) -> Unit
+    ) {
+        viewModelScope.launch {
+            try {
+                val entity = com.example.data.local.FeedbackEntity(
+                    feedbackType = feedbackType,
+                    asset = asset,
+                    signalId = signalId,
+                    reasonCategory = reasonCategory,
+                    description = description,
+                    rating = rating,
+                    contactInfo = contactInfo,
+                    timestamp = System.currentTimeMillis()
+                )
+                repository.submitFeedback(entity)
+
+                // Also try syncing to Firestore collection "user_feedback" if online
+                try {
+                    com.example.fcm.FirebaseAppInitializer.ensureInitialized(getApplication())
+                    val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                    val data = hashMapOf(
+                        "feedbackType" to feedbackType,
+                        "asset" to (asset ?: ""),
+                        "signalId" to (signalId ?: 0L),
+                        "reasonCategory" to (reasonCategory ?: ""),
+                        "description" to description,
+                        "rating" to rating,
+                        "contactInfo" to (contactInfo ?: ""),
+                        "timestamp" to System.currentTimeMillis()
+                    )
+                    firestore.collection("user_feedback").add(data)
+                } catch (_: Exception) {
+                    // Handled gracefully in offline mode
+                }
+
+                onComplete(true)
+            } catch (e: Exception) {
+                onComplete(false)
+            }
+        }
+    }
+
+    fun deleteFeedback(id: Long) {
+        viewModelScope.launch {
+            repository.deleteFeedback(id)
         }
     }
 

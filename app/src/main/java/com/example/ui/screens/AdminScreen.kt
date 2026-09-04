@@ -68,6 +68,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -80,6 +81,7 @@ import com.example.data.local.SignalEntity
 import com.example.data.local.UserEntity
 import com.example.data.local.UserSubscriptionEntity
 import com.example.data.repository.OfflineCacheSyncStatus
+import com.example.fcm.FcmNotificationHelper
 import com.example.ui.theme.AmberGold
 import com.example.ui.theme.CardBorder
 import com.example.ui.theme.CardSurface
@@ -759,6 +761,7 @@ fun SignalDeliveryFormSection(
     var rationaleInput by remember(initialRationale) { mutableStateOf(initialRationale) }
 
     var formSuccessMessage by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
 
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         // Broadcast Form Card
@@ -935,6 +938,80 @@ fun SignalDeliveryFormSection(
                     maxLines = 3,
                     shape = RoundedCornerShape(12.dp)
                 )
+
+                // FCM High-Accuracy Push Notification Notice Banner
+                val parsedConfidence = confidenceInput.toIntOrNull() ?: 85
+                val isHighAccuracy = parsedConfidence >= 80 && directionInput != "NO_TRADE"
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(SlateDark900)
+                        .border(1.dp, if (isHighAccuracy) EmeraldNeon.copy(alpha = 0.5f) else CardBorder, RoundedCornerShape(12.dp))
+                        .padding(12.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.NotificationsActive,
+                            contentDescription = null,
+                            tint = if (isHighAccuracy) EmeraldNeon else CyanGlow,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "ارسال پوش نوتیفیکیشن FCM:",
+                                    color = TextPrimary,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.5.sp
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = if (isHighAccuracy) "فعال (دقت بالا 🚀)" else "حالت استاندارد",
+                                    color = if (isHighAccuracy) EmeraldNeon else AmberGold,
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Text(
+                                text = "همگام‌سازی ابری با Firebase Cloud Messaging برای تمام کاربران مشترک تاپیک high_accuracy_signals فعال است.",
+                                color = TextMuted,
+                                fontSize = 9.5.sp
+                            )
+                        }
+                    }
+                }
+
+                // Test Push Notification Button
+                OutlinedButton(
+                    onClick = {
+                        val testSignal = SignalEntity(
+                            asset = assetInput,
+                            category = categoryInput,
+                            direction = directionInput,
+                            strikePrice = strikeInput,
+                            currentPrice = strikeInput,
+                            expiry = expiryInput,
+                            payoutRate = payoutInput,
+                            marketRegime = regimeInput,
+                            confidenceScore = parsedConfidence,
+                            riskScore = "کم ریسک",
+                            vetoStatus = "تایید شده",
+                            rationale = "تست اعلان فوری FCM: سیگنال $assetInput با وین‌ریت $parsedConfidence٪ صادر شد.",
+                            recommendedBrokers = brokersInput,
+                            status = "ACTIVE"
+                        )
+                        FcmNotificationHelper.showSignalNotification(context, testSignal)
+                        formSuccessMessage = "🔔 پوش نوتیفیکیشن تست FCM با موفقیت ارسال شد و در نوار اعلان‌های اندروید قرار گرفت."
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.NotificationsActive, contentDescription = null, tint = CyanGlow, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("تست فوری اعلان پوش نوتیفیکیشن FCM روی این دستگاه", color = CyanGlow, fontSize = 11.sp)
+                }
 
                 // Dispatch Buttons
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

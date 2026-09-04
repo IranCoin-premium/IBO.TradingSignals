@@ -4,8 +4,34 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <queries>
+        <!-- Cafe Bazaar -->
+        <package android:name="com.farsitel.bazaar" />
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="bazaar" />
+        </intent>
+
+        <!-- Myket -->
+        <package android:name="ir.mservices.market" />
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="myket" />
+        </intent>
+
+        <!-- IranApps -->
+        <package android:name="ir.tgbs.android.iranapp" />
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="iranapps" />
+        </intent>
+    </queries>
 
     <application
+        android:name=".TradingApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -25,6 +51,26 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Firebase Cloud Messaging Service -->
+        <service
+            android:name=".fcm.IranBinaryMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- Default notification icon and color for FCM -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@mipmap/ic_launcher" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/emerald_neon" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="signals_channel" />
     </application>
 
 </manifest>

@@ -14,7 +14,10 @@ import com.google.firebase.auth.GoogleAuthProvider
 import kotlinx.coroutines.tasks.await
 
 class FirebaseAuthService(private val context: Context) {
-    private val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
+    private val auth: FirebaseAuth by lazy {
+        com.example.fcm.FirebaseAppInitializer.ensureInitialized(context)
+        FirebaseAuth.getInstance()
+    }
     private val credentialManager: CredentialManager by lazy { CredentialManager.create(context) }
 
     val currentUser: FirebaseUser?

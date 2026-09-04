@@ -18,8 +18,23 @@ interface SignalDao {
     @Query("SELECT * FROM signals WHERE status IN ('WON', 'LOST', 'NO_TRADE') ORDER BY timestamp DESC")
     fun getHistoricalSignals(): Flow<List<SignalEntity>>
 
+    @Query("SELECT * FROM signals WHERE status IN ('WON', 'LOST', 'NO_TRADE') AND (asset LIKE '%' || :query || '%' OR rationale LIKE '%' || :query || '%') ORDER BY timestamp DESC")
+    fun searchHistoricalSignals(query: String): Flow<List<SignalEntity>>
+
     @Query("SELECT * FROM signals WHERE status = 'ACTIVE' ORDER BY timestamp DESC")
     fun getActiveSignals(): Flow<List<SignalEntity>>
+
+    @Query("SELECT COUNT(*) FROM signals WHERE status = 'WON'")
+    fun getWonCountFlow(): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM signals WHERE status = 'LOST'")
+    fun getLostCountFlow(): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM signals WHERE status = 'NO_TRADE'")
+    fun getVetoCountFlow(): Flow<Int>
+
+    @Query("DELETE FROM signals WHERE status IN ('WON', 'LOST', 'NO_TRADE')")
+    suspend fun clearHistory()
 
     @Query("SELECT * FROM signals WHERE id = :id LIMIT 1")
     suspend fun getSignalById(id: Long): SignalEntity?

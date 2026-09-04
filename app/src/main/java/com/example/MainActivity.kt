@@ -1,10 +1,15 @@
 package com.example
 
+import android.Manifest
+import android.content.Context
+import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -14,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Feed
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Stars
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -26,6 +32,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,13 +50,17 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.fcm.FcmNotificationHelper
 import com.example.ui.TradingViewModel
+import com.example.ui.components.IranianMarketsSheet
 import com.example.ui.components.SupportChatModal
 import com.example.ui.screens.AdminScreen
 import com.example.ui.screens.ArticleGuideScreen
 import com.example.ui.screens.AuthModal
 import com.example.ui.screens.NewsScreen
 import com.example.ui.screens.NotFoundScreen
+import com.example.ui.screens.OnboardingTutorialScreen
+import com.example.ui.screens.SignalHistoryScreen
 import com.example.ui.screens.SignalsHomeScreen
 import com.example.ui.screens.SplashScreen
 import com.example.ui.screens.SubscriptionScreen
@@ -65,7 +76,9 @@ import com.example.ui.theme.TextSecondary
 
 sealed class Screen(val route: String, val title: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
     object Splash : Screen("splash", "شروع", Icons.Default.TrendingUp)
+    object OnboardingTutorial : Screen("onboarding_tutorial", "آموزش سیگنال‌ها", Icons.Default.TrendingUp)
     object Home : Screen("home", "سیگنال‌ها", Icons.Default.TrendingUp)
+    object SignalHistory : Screen("signal_history", "تاریخچه سیگنال‌ها", Icons.Default.History)
     object Subscriptions : Screen("subscriptions", "اشتراک ۵ گانه", Icons.Default.Stars)
     object News : Screen("news", "فید اخبار", Icons.Default.Feed)
     object Article : Screen("article", "دانشنامه سئو", Icons.Default.Book)
@@ -77,6 +90,7 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        com.example.fcm.FirebaseAppInitializer.ensureInitialized(this)
         enableEdgeToEdge()
         setContent {
             IranBinaryTheme {
@@ -93,11 +107,49 @@ class MainActivity : ComponentActivity() {
                     val userPlan by viewModel.userPlan.collectAsState()
                     val subscriptions by viewModel.subscriptions.collectAsState()
                     val offlineCacheStatus by viewModel.offlineCacheStatus.collectAsState()
+                    val wonCount by viewModel.wonCount.collectAsState()
+                    val lostCount by viewModel.lostCount.collectAsState()
+                    val vetoCount by viewModel.vetoCount.collectAsState()
 
                     var showSupportSheet by remember { mutableStateOf(false) }
                     var showAuthSheet by remember { mutableStateOf(false) }
+                    var showMarketsSheet by remember { mutableStateOf(false) }
                     val supportSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
                     val authSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                    val marketsSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+                    // 1. Initialize FCM Notification Channel & Topics (high_accuracy_signals)
+                    LaunchedEffect(Unit) {
+                        FcmNotificationHelper.initNotificationChannel(context)
+                        FcmNotificationHelper.subscribeToTopics(context)
+                    }
+
+                    // 2. Android 13+ (API 33) Runtime Notification Permission
+                    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+                        contract = ActivityResultContracts.RequestPermission()
+                    ) { isGranted ->
+                        if (isGranted) {
+                            FcmNotificationHelper.subscribeToTopics(context)
+                        }
+                    }
+
+                    LaunchedEffect(Unit) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            if (!FcmNotificationHelper.isNotificationPermissionGranted(context)) {
+                                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            }
+                        }
+                    }
+
+                    // 3. Handle push notification click navigation
+                    LaunchedEffect(intent) {
+                        val navigateTo = intent?.getStringExtra(FcmNotificationHelper.EXTRA_NAVIGATE_TO)
+                        if (navigateTo == "signals") {
+                            navController.navigate(Screen.Home.route) {
+                                launchSingleTop = true
+                            }
+                        }
+                    }
 
                     val navBackStackEntry by navController.currentBackStackEntryAsState()
                     val currentRoute = navBackStackEntry?.destination?.route
@@ -173,8 +225,21 @@ class MainActivity : ComponentActivity() {
                                 composable(Screen.Splash.route) {
                                     SplashScreen(
                                         onFinished = {
-                                            navController.navigate(Screen.Home.route) {
+                                            val prefs = context.getSharedPreferences("iran_binary_prefs", Context.MODE_PRIVATE)
+                                            val hasCompletedTutorial = prefs.getBoolean("has_completed_onboarding_tutorial", false)
+                                            val targetRoute = if (hasCompletedTutorial) Screen.Home.route else Screen.OnboardingTutorial.route
+                                            navController.navigate(targetRoute) {
                                                 popUpTo(Screen.Splash.route) { inclusive = true }
+                                            }
+                                        }
+                                    )
+                                }
+
+                                composable(Screen.OnboardingTutorial.route) {
+                                    OnboardingTutorialScreen(
+                                        onFinish = {
+                                            navController.navigate(Screen.Home.route) {
+                                                popUpTo(Screen.OnboardingTutorial.route) { inclusive = true }
                                             }
                                         }
                                     )
@@ -191,9 +256,31 @@ class MainActivity : ComponentActivity() {
                                         onOpenSupport = {
                                             showSupportSheet = true
                                         },
+                                        onOpenMarkets = {
+                                            showMarketsSheet = true
+                                        },
+                                        onOpenTutorial = {
+                                            navController.navigate(Screen.OnboardingTutorial.route)
+                                        },
+                                        onOpenHistory = {
+                                            navController.navigate(Screen.SignalHistory.route)
+                                        },
                                         onOpenNotFoundTest = {
                                             navController.navigate(Screen.NotFound.route)
                                         }
+                                    )
+                                }
+
+                                composable(Screen.SignalHistory.route) {
+                                    SignalHistoryScreen(
+                                        signals = signals,
+                                        wonCount = wonCount,
+                                        lostCount = lostCount,
+                                        vetoCount = vetoCount,
+                                        onBack = { navController.popBackStack() },
+                                        onDeleteSignal = { id -> viewModel.deleteSignal(id) },
+                                        onClearHistory = { viewModel.clearHistoricalSignals() },
+                                        onAddSampleSignal = { signal -> viewModel.addSignal(signal) }
                                     )
                                 }
 
@@ -299,6 +386,14 @@ class MainActivity : ComponentActivity() {
                                 SupportChatModal(
                                     sheetState = supportSheetState,
                                     onDismiss = { showSupportSheet = false }
+                                )
+                            }
+
+                            // Iranian Markets Hub Modal (Bazaar, Myket, IranApps)
+                            if (showMarketsSheet) {
+                                IranianMarketsSheet(
+                                    sheetState = marketsSheetState,
+                                    onDismiss = { showMarketsSheet = false }
                                 )
                             }
 

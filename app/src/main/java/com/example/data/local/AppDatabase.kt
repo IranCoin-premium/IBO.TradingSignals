@@ -11,9 +11,10 @@ import androidx.room.RoomDatabase
         NewsEntity::class,
         PlanEntity::class,
         UserEntity::class,
-        UserSubscriptionEntity::class
+        UserSubscriptionEntity::class,
+        FeedbackEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -22,6 +23,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun planDao(): PlanDao
     abstract fun userDao(): UserDao
     abstract fun userSubscriptionDao(): UserSubscriptionDao
+    abstract fun feedbackDao(): FeedbackDao
 
     companion object {
         @Volatile
