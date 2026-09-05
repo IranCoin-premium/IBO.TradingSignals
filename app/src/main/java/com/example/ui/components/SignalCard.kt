@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -48,29 +49,37 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.R
 import com.example.data.local.SignalEntity
 import com.example.ui.theme.AmberGold
+import com.example.ui.theme.CanaryYellow
 import com.example.ui.theme.CardBorder
 import com.example.ui.theme.CardSurface
 import com.example.ui.theme.CrimsonGlow
 import com.example.ui.theme.CrimsonRed
 import com.example.ui.theme.CyanGlow
 import com.example.ui.theme.CyanNeon
+import com.example.ui.theme.ElectricOrange
 import com.example.ui.theme.EmeraldDark
 import com.example.ui.theme.EmeraldGlow
 import com.example.ui.theme.EmeraldNeon
 import com.example.ui.theme.GoldGlow
+import com.example.ui.theme.PhosphorGreen
+import com.example.ui.theme.PhosphorGreenGlow
 import com.example.ui.theme.SlateDark800
 import com.example.ui.theme.SlateDark900
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
+
 
 @Composable
 fun SignalCard(
@@ -88,28 +97,29 @@ fun SignalCard(
     val isNoTrade = signal.direction == "NO_TRADE"
 
     val directionColor = when {
-        isCall -> EmeraldNeon
+        isCall -> PhosphorGreen
         isPut -> CrimsonRed
-        else -> AmberGold
+        else -> CanaryYellow
     }
 
     val directionBg = when {
-        isCall -> EmeraldDark.copy(alpha = 0.5f)
-        isPut -> CrimsonRed.copy(alpha = 0.15f)
-        else -> AmberGold.copy(alpha = 0.15f)
+        isCall -> PhosphorGreen.copy(alpha = 0.16f)
+        isPut -> CrimsonRed.copy(alpha = 0.16f)
+        else -> CanaryYellow.copy(alpha = 0.14f)
     }
 
     val directionText = when {
-        isCall -> "CALL (خرید / بالا)"
-        isPut -> "PUT (فروش / پایین)"
-        else -> "NO TRADE (عدم ورود)"
+        isCall -> "CALL (خرید / بالا ⬆)"
+        isPut -> "PUT (فروش / پایین ⬇)"
+        else -> "NO TRADE (عدم ورود 🛑)"
     }
 
     val borderBrush = when {
-        isCall -> Brush.linearGradient(listOf(EmeraldNeon, CyanNeon.copy(alpha = 0.6f)))
-        isPut -> Brush.linearGradient(listOf(CrimsonRed, AmberGold.copy(alpha = 0.6f)))
-        else -> Brush.linearGradient(listOf(AmberGold.copy(alpha = 0.7f), SlateDark800))
+        isCall -> Brush.linearGradient(listOf(PhosphorGreen, CanaryYellow.copy(alpha = 0.7f), CyanNeon.copy(alpha = 0.5f)))
+        isPut -> Brush.linearGradient(listOf(CrimsonRed, ElectricOrange.copy(alpha = 0.8f), AmberGold.copy(alpha = 0.5f)))
+        else -> Brush.linearGradient(listOf(CanaryYellow.copy(alpha = 0.8f), SlateDark800))
     }
+
 
     Card(
         modifier = modifier
@@ -207,30 +217,47 @@ fun SignalCard(
                             .clip(RoundedCornerShape(12.dp))
                             .background(directionBg)
                             .border(1.dp, directionColor.copy(alpha = 0.8f), RoundedCornerShape(12.dp))
-                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = when {
-                                isCall -> Icons.Default.ArrowUpward
-                                isPut -> Icons.Default.ArrowDownward
-                                else -> Icons.Default.Block
-                            },
-                            contentDescription = null,
-                            tint = directionColor,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = directionText,
-                            style = MaterialTheme.typography.labelMedium.copy(
-                                fontWeight = FontWeight.Black,
-                                fontSize = 11.sp
-                            ),
-                            color = directionColor
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (isCall) {
+                                Image(
+                                    painter = painterResource(id = R.drawable.ibo_call_badge_1788608758178),
+                                    contentDescription = "CALL 3D Badge",
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clip(CircleShape),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else if (isPut) {
+                                Image(
+                                    painter = painterResource(id = R.drawable.ibo_put_badge_1788608777175),
+                                    contentDescription = "PUT 3D Badge",
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clip(CircleShape),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.Block,
+                                    contentDescription = null,
+                                    tint = directionColor,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = directionText,
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 11.sp
+                                ),
+                                color = directionColor
+                            )
+                        }
                     }
-                }
+
             }
         }
 

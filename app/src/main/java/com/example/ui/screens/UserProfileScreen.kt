@@ -118,8 +118,10 @@ fun UserProfileScreen(
     var selectedTab by remember { mutableStateOf(0) }
     var autoRenewNotifications by remember { mutableStateOf(true) }
 
-    var logoStyle by remember { mutableStateOf(BrandLogoStyle.CYBER_NEON) }
+    var logoStyle: BrandLogoStyle by remember { mutableStateOf<BrandLogoStyle>(BrandLogoStyle.PHOSPHOR_CANARY) }
     var speedFactor by remember { mutableStateOf(1.0f) }
+
+
     var strokeWidthFactor by remember { mutableStateOf(1.0f) }
     var coreScaleFactor by remember { mutableStateOf(1.0f) }
     var glowIntensity by remember { mutableStateOf(1.0f) }

@@ -103,11 +103,14 @@ class MainActivity : ComponentActivity() {
         com.example.fcm.FirebaseAppInitializer.ensureInitialized(this)
         enableEdgeToEdge()
         setContent {
-            IranBinaryTheme {
+            val viewModel: TradingViewModel = viewModel()
+            val luxuryThemeMode by viewModel.luxuryThemeMode.collectAsState()
+
+            IranBinaryTheme(luxuryMode = luxuryThemeMode) {
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
                     val navController = rememberNavController()
-                    val viewModel: TradingViewModel = viewModel()
                     val context = LocalContext.current
+
 
                     val signals by viewModel.signals.collectAsState()
                     val plans by viewModel.plans.collectAsState()
@@ -366,7 +369,13 @@ class MainActivity : ComponentActivity() {
                                         staffList = staffList,
                                         subscriptions = subscriptions,
                                         offlineCacheStatus = offlineCacheStatus,
+                                        currentLuxuryTheme = luxuryThemeMode,
+                                        onSelectLuxuryTheme = { selectedMode ->
+                                            viewModel.setLuxuryThemeMode(selectedMode)
+                                            Toast.makeText(context, "پالت دیزاین ${selectedMode.title} اعمال شد ✨", Toast.LENGTH_SHORT).show()
+                                        },
                                         onLogin = { email, pass ->
+
                                             viewModel.login(email, pass) { success, msg ->
                                                 Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                                             }

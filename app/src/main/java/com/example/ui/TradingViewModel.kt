@@ -78,6 +78,15 @@ class TradingViewModel(application: Application) : AndroidViewModel(application)
     val tradeLogs: StateFlow<List<com.example.data.local.TradeLogEntity>> = repository.allTradeLogs
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    // Ultra Luxury Theme Mode State (Controllable via Admin Panel and Client Switch)
+    private val _luxuryThemeMode = MutableStateFlow(com.example.ui.theme.LuxuryThemeMode.PHOSPHOR_CANARY)
+    val luxuryThemeMode: StateFlow<com.example.ui.theme.LuxuryThemeMode> = _luxuryThemeMode.asStateFlow()
+
+    fun setLuxuryThemeMode(mode: com.example.ui.theme.LuxuryThemeMode) {
+        _luxuryThemeMode.value = mode
+    }
+
+
     val offlineCacheStatus: StateFlow<OfflineCacheSyncStatus> = repository.offlineCacheStatus
 
     val brokers: List<BrokerItem> = repository.binaryBrokers

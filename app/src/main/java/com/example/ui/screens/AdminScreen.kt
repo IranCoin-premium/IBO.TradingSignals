@@ -109,6 +109,8 @@ fun AdminScreen(
     staffList: List<UserEntity>,
     subscriptions: List<UserSubscriptionEntity> = emptyList(),
     offlineCacheStatus: OfflineCacheSyncStatus? = null,
+    currentLuxuryTheme: com.example.ui.theme.LuxuryThemeMode = com.example.ui.theme.LuxuryThemeMode.PHOSPHOR_CANARY,
+    onSelectLuxuryTheme: (com.example.ui.theme.LuxuryThemeMode) -> Unit = {},
     onLogin: (email: String, pass: String) -> Unit,
     onLogout: () -> Unit,
     onUpdatePassword: (newPass: String) -> Unit,
@@ -122,6 +124,7 @@ fun AdminScreen(
     onSyncCloud: () -> Unit = {},
     onRunAiAgent: (String) -> String
 ) {
+
     var adminEmailInput by remember { mutableStateOf("admin@iranbinary.ir") }
     var adminPassInput by remember { mutableStateOf("IranBinaryAdmin2026!") }
     var showPassword by remember { mutableStateOf(false) }
@@ -390,12 +393,14 @@ fun AdminScreen(
             item {
                 val tabs = listOf(
                     "AI_PROMPT_BOX" to "دستیار AI و پرامپت‌باکس",
+                    "THEME_PALETTES" to "دیزاین لوکس و پالت رنگ‌ها 🎨",
                     "SIGNAL_DELIVERY" to "فرم تحویل سیگنال",
                     "SUBSCRIPTION_TIERS" to "فرم پلن‌های اشتراک",
                     "NEWS_CMS" to "انتشار اخبار فاندامنتال",
                     "OFFLINE_CACHE_CLOUD" to "کش آفلاین Room و ابری",
                     "SECURITY" to "امنیت و کارمندان"
                 )
+
 
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -447,7 +452,16 @@ fun AdminScreen(
                         )
                     }
                 }
+                "THEME_PALETTES" -> {
+                    item {
+                        LuxuryThemeConfigSection(
+                            currentTheme = currentLuxuryTheme,
+                            onSelectTheme = onSelectLuxuryTheme
+                        )
+                    }
+                }
                 "SIGNAL_DELIVERY" -> {
+
                     item {
                         SignalDeliveryFormSection(
                             signals = signals,
@@ -540,7 +554,179 @@ fun MetricPill(
     }
 }
 
+// Sub-Section: Luxury Design System & Color Palette Admin Management
+@Composable
+fun LuxuryThemeConfigSection(
+    currentTheme: com.example.ui.theme.LuxuryThemeMode,
+    onSelectTheme: (com.example.ui.theme.LuxuryThemeMode) -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .border(1.dp, CardBorder, RoundedCornerShape(18.dp)),
+        colors = CardDefaults.cardColors(containerColor = CardSurface)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(com.example.ui.theme.CanaryYellow.copy(alpha = 0.2f))
+                        .border(1.dp, com.example.ui.theme.CanaryYellow, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.AutoAwesome,
+                        contentDescription = null,
+                        tint = com.example.ui.theme.CanaryYellow,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
+                    Text(
+                        "مدیریت استایل و پالت‌های رنگی دیزاین سیستم لوکس",
+                        color = TextPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                    Text(
+                        "تغییر لحظه‌ای تم رنگی کل اپلیکیشن (زرد، سبز فسفری، آبی، قرمز و نارنجی)",
+                        color = TextSecondary,
+                        fontSize = 11.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                "پالت‌های رنگی فوق‌العاده طراحی‌شده (با یک لمس فعال می‌شود):",
+                color = com.example.ui.theme.CanaryYellow,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            com.example.ui.theme.LuxuryThemeMode.values().forEach { mode ->
+                val isSelected = currentTheme == mode
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 5.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(if (isSelected) SlateDark800 else SlateDark900)
+                        .border(
+                            if (isSelected) 1.5.dp else 1.dp,
+                            if (isSelected) mode.accentPrimary else CardBorder,
+                            RoundedCornerShape(14.dp)
+                        )
+                        .clickable { onSelectTheme(mode) }
+                        .padding(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            // Color swatches preview dots
+                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .clip(CircleShape)
+                                        .background(mode.accentPrimary)
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .clip(CircleShape)
+                                        .background(mode.accentSecondary)
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .clip(CircleShape)
+                                        .background(mode.bgPrimary)
+                                        .border(0.5.dp, Color.White, CircleShape)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = mode.title,
+                                    color = if (isSelected) mode.accentPrimary else TextPrimary,
+                                    fontWeight = if (isSelected) FontWeight.Black else FontWeight.SemiBold,
+                                    fontSize = 13.sp
+                                )
+                                Text(
+                                    text = if (isSelected) "● تم در حال استفاده در کل اپ" else "جهت اعمال روی اپ لمس کنید",
+                                    color = if (isSelected) com.example.ui.theme.PhosphorGreen else TextMuted,
+                                    fontSize = 10.5.sp
+                                )
+                            }
+                        }
+
+                        if (isSelected) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(mode.accentPrimary.copy(alpha = 0.2f))
+                                    .border(1.dp, mode.accentPrimary, RoundedCornerShape(8.dp))
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    "فعال است",
+                                    color = mode.accentPrimary,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Design metrics & typography note
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(SlateDark900)
+                    .border(0.8.dp, CardBorder, RoundedCornerShape(12.dp))
+                    .padding(12.dp)
+            ) {
+                Column {
+                    Text(
+                        "💎 مشخصات متریال دیزاین ۳ و تایپوگرافی آپ‌اسکیل:",
+                        color = TextPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 11.5.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        "• فونت‌های سنس‌سریف و هدلاین‌های لبه‌تیز با لتر اسپیسینگ استاندارد طلاکاری‌شده\n" +
+                        "• لوگوموشن ۳ بعدی با امواج پالسی هولوگرافیک و نشان رسمی TRADING SIGNALS\n" +
+                        "• نشان‌های کریستالی ۳D انحصاری دکمه‌های CALL (سبز فسفری/زرد) و PUT (قرمز/نارنجی)\n" +
+                        "• خط افشای ریسک قانونی و بدون ادعای دروغین، منطبق بر تمام قوانین",
+                        color = TextSecondary,
+                        fontSize = 10.5.sp,
+                        lineHeight = 16.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
 // Sub-Section: AI Assistant Prompt Box for Managing Signal Delivery & Subscription Tiers
+
 @Composable
 fun AiPromptBoxSection(
     onRunAiAgent: (String) -> String,

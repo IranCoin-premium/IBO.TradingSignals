@@ -8,6 +8,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -42,18 +43,28 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.R
 import com.example.ui.theme.AmberGold
+import com.example.ui.theme.CanaryYellow
 import com.example.ui.theme.CardSurface
+import com.example.ui.theme.CrimsonGlow
+import com.example.ui.theme.CrimsonRed
 import com.example.ui.theme.CyanGlow
 import com.example.ui.theme.CyanNeon
+import com.example.ui.theme.ElectricOrange
 import com.example.ui.theme.EmeraldDark
 import com.example.ui.theme.EmeraldGlow
 import com.example.ui.theme.EmeraldNeon
 import com.example.ui.theme.GoldGlow
+import com.example.ui.theme.PhosphorGreen
+import com.example.ui.theme.PhosphorGreenGlow
+import com.example.ui.theme.RoyalCyberBlue
 import com.example.ui.theme.SlateDark800
 import com.example.ui.theme.SlateDark900
 import com.example.ui.theme.TextPrimary
@@ -67,12 +78,12 @@ enum class BrandLogoStyle(
     val accentColor: Color,
     val coreIcon: androidx.compose.ui.graphics.vector.ImageVector
 ) {
-    CYBER_NEON(
-        "سایبر نئون ⚡",
-        "تم دیجیتالی مدرن با ترکیب رنگ‌های سبز نئون و آبی آسمانی تابان",
-        EmeraldNeon,
+    PHOSPHOR_CANARY(
+        "فسفری و زرد قناری سوپرلوکس ⚡",
+        "تم دیجیتالی مدرن با ترکیب رنگ‌های سبز فسفری و زرد قناری تابان",
+        PhosphorGreen,
+        CanaryYellow,
         CyanNeon,
-        AmberGold,
         Icons.Default.AutoGraph
     ),
     GOLD_LUXURY(
@@ -80,23 +91,23 @@ enum class BrandLogoStyle(
         "تم سلطنتی و باشکوه با ترکیب طلا و پلاتین درخشان",
         AmberGold,
         GoldGlow,
-        Color(0xFFFFD700),
+        CanaryYellow,
         Icons.Default.Shield
     ),
-    ROYAL_SAPPHIRE(
-        "یاقوت سلطنتی 💎",
-        "تم حرفه‌ای تریدینگ مدرن با نورهای بنفش عمیق و آبی اقیانوسی",
-        CyanNeon,
-        Color(0xFF8A2BE2),
-        Color(0xFFE0B0FF),
+    CYBER_ORANGE_CRIMSON(
+        "نارنجی پرحرارت & زرشکی 🔥",
+        "تم پرهیجان معامله‌گری با انفجار رنگ‌های نارنجی و قرمز نئون",
+        ElectricOrange,
+        CrimsonRed,
+        CrimsonGlow,
         Icons.Default.TrendingUp
     ),
-    EMERALD_MINT(
-        "نعنایی زمرد 🍀",
-        "تم آرامش و رشد معامله‌گری با رنگ‌های نعنایی و سبز تیره جنگلی",
-        Color(0xFF00FFCC),
-        Color(0xFF1B4D3E),
-        Color(0xFFCCFF00),
+    ROYAL_SAPPHIRE(
+        "یاقوت سلطنتی & آبی رویال 💎",
+        "تم حرفه‌ای تریدینگ مدرن با نورهای آبی رویال و فیروزه‌ای عمیق",
+        RoyalCyberBlue,
+        CyanNeon,
+        CanaryYellow,
         Icons.Default.CheckCircle
     )
 }
@@ -106,7 +117,7 @@ fun BrandLogomotion(
     modifier: Modifier = Modifier,
     compact: Boolean = false,
     showMotto: Boolean = true,
-    style: BrandLogoStyle = BrandLogoStyle.CYBER_NEON,
+    style: BrandLogoStyle = BrandLogoStyle.PHOSPHOR_CANARY,
     speedFactor: Float = 1.0f,
     strokeWidthFactor: Float = 1.0f,
     coreScaleFactor: Float = 1.0f,
@@ -117,27 +128,47 @@ fun BrandLogomotion(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
-            animation = tween((12000 / speedFactor.coerceAtLeast(0.1f)).toInt(), easing = LinearEasing),
+            animation = tween((9000 / speedFactor.coerceAtLeast(0.1f)).toInt(), easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "rotation"
     )
 
-    val pulseScale by infiniteTransition.animateFloat(
-        initialValue = 0.95f,
-        targetValue = 1.05f,
+    val counterRotation by infiniteTransition.animateFloat(
+        initialValue = 360f,
+        targetValue = 0f,
         animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = FastOutSlowInEasing),
+            animation = tween((14000 / speedFactor.coerceAtLeast(0.1f)).toInt(), easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "counter_rotation"
+    )
+
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 0.94f,
+        targetValue = 1.06f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1800, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "pulse"
     )
 
-    val glowAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.4f * glowIntensity,
-        targetValue = 0.9f * glowIntensity,
+    val waveRingRadius by infiniteTransition.animateFloat(
+        initialValue = 0.8f,
+        targetValue = 1.3f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = FastOutSlowInEasing),
+            animation = tween(2200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "wave_ring"
+    )
+
+    val glowAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.45f * glowIntensity,
+        targetValue = 0.95f * glowIntensity,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1400, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "glow"
@@ -146,39 +177,56 @@ fun BrandLogomotion(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(22.dp))
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        SlateDark900.copy(alpha = 0.95f),
+                        SlateDark900.copy(alpha = 0.96f),
                         CardSurface
                     )
                 )
             )
             .border(
-                1.dp,
+                1.2.dp,
                 Brush.horizontalGradient(
                     listOf(
-                        style.primaryColor.copy(alpha = 0.4f * glowIntensity),
-                        style.secondaryColor.copy(alpha = 0.6f * glowIntensity),
-                        style.accentColor.copy(alpha = 0.4f * glowIntensity)
+                        style.primaryColor.copy(alpha = 0.5f * glowIntensity),
+                        style.secondaryColor.copy(alpha = 0.7f * glowIntensity),
+                        style.accentColor.copy(alpha = 0.5f * glowIntensity)
                     )
                 ),
-                RoundedCornerShape(20.dp)
+                RoundedCornerShape(22.dp)
             )
-            .padding(if (compact) 12.dp else 20.dp),
+            .padding(if (compact) 12.dp else 18.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // Logomotion visual centerpiece
+        // Logomotion visual centerpiece with luxury animated badge
         Box(
-            modifier = Modifier.size(if (compact) 72.dp else 104.dp),
+            modifier = Modifier.size(if (compact) 82.dp else 116.dp),
             contentAlignment = Alignment.Center
         ) {
-            // Rotating cyber radar circles
+            // Outermost pulsing holographic wave ring
             Canvas(
                 modifier = Modifier
-                    .size(if (compact) 72.dp else 104.dp)
+                    .size(if (compact) 82.dp else 116.dp)
+                    .scale(waveRingRadius)
+            ) {
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        listOf(
+                            style.primaryColor.copy(alpha = 0.25f * (1.3f - waveRingRadius)),
+                            Color.Transparent
+                        )
+                    ),
+                    radius = size.minDimension / 2
+                )
+            }
+
+            // Rotating cyber radar circles with multi-color neon sweep
+            Canvas(
+                modifier = Modifier
+                    .size(if (compact) 82.dp else 116.dp)
                     .rotate(rotation)
             ) {
                 val strokeWidth = 2.dp.toPx() * strokeWidthFactor
@@ -186,7 +234,7 @@ fun BrandLogomotion(
                     brush = Brush.sweepGradient(
                         listOf(
                             style.primaryColor.copy(alpha = glowAlpha),
-                            style.secondaryColor.copy(alpha = 0.1f),
+                            style.secondaryColor.copy(alpha = 0.2f),
                             style.accentColor.copy(alpha = glowAlpha),
                             style.primaryColor.copy(alpha = glowAlpha)
                         )
@@ -194,59 +242,66 @@ fun BrandLogomotion(
                     style = Stroke(width = strokeWidth)
                 )
 
-                // Dashed nodes
+                // Nodes of Canary Yellow & Phosphor Green
                 drawCircle(
-                    color = style.primaryColor,
-                    radius = 4.dp.toPx() * strokeWidthFactor,
+                    color = CanaryYellow,
+                    radius = 4.5.dp.toPx() * strokeWidthFactor,
                     center = Offset(size.width / 2, 2.dp.toPx())
                 )
                 drawCircle(
-                    color = style.secondaryColor,
-                    radius = 4.dp.toPx() * strokeWidthFactor,
+                    color = PhosphorGreen,
+                    radius = 4.5.dp.toPx() * strokeWidthFactor,
                     center = Offset(size.width - 2.dp.toPx(), size.height / 2)
+                )
+                drawCircle(
+                    color = ElectricOrange,
+                    radius = 3.5.dp.toPx() * strokeWidthFactor,
+                    center = Offset(2.dp.toPx(), size.height / 2)
                 )
             }
 
             // Counter-rotating inner ring
             Canvas(
                 modifier = Modifier
-                    .size(if (compact) 56.dp else 84.dp)
-                    .rotate(-rotation * 1.5f)
+                    .size(if (compact) 64.dp else 92.dp)
+                    .rotate(counterRotation)
             ) {
                 drawCircle(
                     brush = Brush.sweepGradient(
                         listOf(
-                            style.secondaryColor.copy(alpha = 0.7f * glowIntensity),
+                            style.secondaryColor.copy(alpha = 0.8f * glowIntensity),
                             Color.Transparent,
-                            style.primaryColor.copy(alpha = 0.7f * glowIntensity)
+                            style.primaryColor.copy(alpha = 0.8f * glowIntensity)
                         )
                     ),
-                    style = Stroke(width = 1.5.dp.toPx() * strokeWidthFactor)
+                    style = Stroke(width = 1.6.dp.toPx() * strokeWidthFactor)
                 )
             }
 
-            // Core hexagon badge
+            // Core 3D Luxury Custom Brand Badge
             Box(
                 modifier = Modifier
-                    .size(if (compact) 44.dp else 64.dp)
+                    .size(if (compact) 54.dp else 76.dp)
                     .scale(pulseScale * coreScaleFactor)
                     .clip(CircleShape)
                     .background(
                         Brush.radialGradient(
                             listOf(
-                                style.primaryColor.copy(alpha = 0.3f),
+                                style.primaryColor.copy(alpha = 0.35f),
                                 SlateDark800
                             )
                         )
                     )
-                    .border(1.5.dp, style.accentColor.copy(alpha = 0.8f), CircleShape),
+                    .border(2.dp, Brush.linearGradient(listOf(style.secondaryColor, style.primaryColor)), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = style.coreIcon,
-                    contentDescription = "Iran Binary Option Logo",
-                    tint = style.primaryColor,
-                    modifier = Modifier.size(if (compact) 24.dp else 36.dp)
+                Image(
+                    painter = painterResource(id = R.drawable.ibo_luxury_logo_1788608740521),
+                    contentDescription = "IBO Binary Option Trading Luxury Brand Logo",
+                    modifier = Modifier
+                        .size(if (compact) 48.dp else 68.dp)
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop
                 )
             }
         }
@@ -269,29 +324,40 @@ fun BrandLogomotion(
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
-            modifier = Modifier.padding(top = 2.dp)
+            modifier = Modifier.padding(top = 4.dp)
         ) {
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(style.primaryColor.copy(alpha = 0.15f))
-                    .border(0.8.dp, style.primaryColor.copy(alpha = 0.7f), RoundedCornerShape(6.dp))
-                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(
+                                style.primaryColor.copy(alpha = 0.2f),
+                                style.secondaryColor.copy(alpha = 0.2f)
+                            )
+                        )
+                    )
+                    .border(
+                        1.dp,
+                        Brush.horizontalGradient(listOf(style.primaryColor, style.secondaryColor)),
+                        RoundedCornerShape(8.dp)
+                    )
+                    .padding(horizontal = 10.dp, vertical = 3.dp)
             ) {
                 Text(
-                    text = "Trading Signals",
+                    text = "TRADING SIGNALS VIP",
                     style = MaterialTheme.typography.labelMedium.copy(
-                        fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 1.5.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 2.sp,
                         fontSize = if (compact) 11.sp else 13.sp
                     ),
-                    color = style.primaryColor
+                    color = CanaryYellow
                 )
             }
         }
 
         if (showMotto) {
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             // Primary Official Slogan
             Text(
@@ -301,7 +367,7 @@ fun BrandLogomotion(
                     fontSize = if (compact) 11.sp else 12.sp,
                     lineHeight = 18.sp
                 ),
-                color = style.accentColor,
+                color = PhosphorGreenGlow,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 8.dp)
             )
@@ -314,25 +380,27 @@ fun BrandLogomotion(
                 horizontalArrangement = Arrangement.Center,
                 modifier = Modifier
                     .clip(RoundedCornerShape(30.dp))
-                    .background(SlateDark800.copy(alpha = 0.8f))
-                    .padding(horizontal = 12.dp, vertical = 4.dp)
+                    .background(SlateDark800.copy(alpha = 0.85f))
+                    .border(0.8.dp, style.primaryColor.copy(alpha = 0.3f), RoundedCornerShape(30.dp))
+                    .padding(horizontal = 14.dp, vertical = 5.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Shield,
                     contentDescription = null,
-                    tint = style.primaryColor,
-                    modifier = Modifier.size(14.dp)
+                    tint = CanaryYellow,
+                    modifier = Modifier.size(15.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = "تحلیل قبل از تصمیم، ریسک قبل از معامله",
                     style = MaterialTheme.typography.labelSmall.copy(
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = FontWeight.Bold,
                         fontSize = 11.sp
                     ),
-                    color = TextSecondary
+                    color = TextPrimary
                 )
             }
         }
     }
 }
+
