@@ -9,6 +9,7 @@ import { checkout, verifyPayment, createPurchaseIntent, getPurchaseIntent, cance
 import { getSignals, createSignal } from './modules/signals/signals.controller';
 import { scanSecurity } from './modules/admin/admin.controller';
 import agentsRouter from './modules/agents/agents.routes';
+import adminRouter from './modules/admin/admin.routes';
 import supportRouter from './modules/support/support.routes';
 import devopsRouter from './modules/devops/devops.routes';
 import paymentsRouter from './modules/payments/payments.routes';
@@ -82,8 +83,8 @@ app.use(`${prefix}`, paymentsRouter);
 app.get(`${prefix}/signals`, authenticateToken as any, getSignals as any);
 app.post(`${prefix}/signals/create`, authenticateToken as any, requireRoles(['ADMIN', 'STAFF', 'SERVICE_AGENT']) as any, createSignal as any);
 
-// ADMIN SECURITY APIS
-app.post(`${prefix}/admin/security/scan`, authenticateToken as any, requireRoles(['ADMIN', 'SUPER_ADMIN']) as any, scanSecurity as any);
+// ADMIN SECURITY & SECRETS APIS
+app.use(`${prefix}/admin`, adminRouter);
 
 // AGENT ORCHESTRATION & GOVERNANCE APIS
 app.use(`${prefix}/agents`, agentsRouter);

@@ -765,4 +765,60 @@ describe('IBO Trading Signals Backend Integration Tests', () => {
       expect(video.styleReferenceId).toBe('med_base_image_123');
     });
   });
+
+  describe('Part 9 - Admin Secrets Management & AI Assistants Panel', () => {
+    it('Security Check: should reject non-admin requests from accessing admin secrets', async () => {
+      const res = await request(app)
+        .get(`${prefix}/admin/secrets`)
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(403);
+    });
+
+    it('List Secrets: should list registered AI agents & payment secrets with masked hints (never raw secrets)', async () => {
+      const res = await request(app)
+        .get(`${prefix}/admin/secrets`)
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('success');
+      expect(res.body.data.total).toBeGreaterThanOrEqual(9);
+
+      // Verify no raw keys exist and all secrets have masked hints like '****ab12'
+      for (const service of res.body.data.services) {
+        expect(service.masked_hint).toMatch(/^\*{4}[a-z0-9]{4}$/);
+        expect(service).not.toHaveProperty('raw_secret_value');
+        expect(service).not.toHaveProperty('raw_value');
+        expect(service.secret_ref).toBeDefined();
+      }
+    });
+
+    it('Update Secret: should update secret via provider bridge, return safe mask and record human audit', async () => {
+      const res = await request(app)
+        .post(`${prefix}/admin/secrets/GOOGLE_FLOW_API_KEY`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          raw_secret_value: 'sk-googleflow-nano-9988aabb',
+          is_active: true,
+          assistant_metadata: {
+            model: 'nanobanana-v2',
+            maxDuration: 45
+          }
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('success');
+      expect(res.body.data.masked_hint).toBe('****aabb');
+      expect(res.body.data.secret_ref).toBe('GITHUB_SECRET:GOOGLE_FLOW_API_KEY');
+      expect(res.body.data.assistant_metadata.maxDuration).toBe(45);
+      expect(res.body.data.updated_by).toBe('admin@ibo.ir');
+    });
+
+    it('Masking utility: should correctly format secrets with only last 4 characters visible', () => {
+      const { SecretsManagerBridge } = require('../modules/admin/secrets-bridge.service');
+      expect(SecretsManagerBridge.maskSecret('live_secret_key_abcdef1234')).toBe('****1234');
+      expect(SecretsManagerBridge.maskSecret('abc')).toBe('****');
+    });
+  });
 });
+
