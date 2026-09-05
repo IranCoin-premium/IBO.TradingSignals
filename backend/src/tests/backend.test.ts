@@ -820,5 +820,166 @@ describe('IBO Trading Signals Backend Integration Tests', () => {
       expect(SecretsManagerBridge.maskSecret('abc')).toBe('****');
     });
   });
+
+  describe('Part 10 - Multilingual SEO, GEO, Sitemap & Legal Risk Disclosure', () => {
+    const {
+      generateHomepageSchema,
+      generateNewsArticleSchema,
+      generateMultilingualSitemapXml
+    } = require('../modules/seo/seo.service');
+
+    it('Sitemap Generator: should generate valid XML sitemap with 6 languages and hreflang links', async () => {
+      const res = await request(app).get('/sitemap.xml');
+
+      expect(res.status).toBe(200);
+      expect(res.header['content-type']).toContain('application/xml');
+      expect(res.text).toContain('<?xml version="1.0" encoding="UTF-8"?>');
+      expect(res.text).toContain('xmlns:xhtml="http://www.w3.org/1999/xhtml"');
+
+      // Check all 6 languages and x-default presence
+      for (const lang of ['fa', 'en', 'ar', 'hi', 'tr', 'ru']) {
+        expect(res.text).toContain(`hreflang="${lang}"`);
+        expect(res.text).toContain(`https://yourdomain.com/${lang}/`);
+      }
+      expect(res.text).toContain('hreflang="x-default"');
+    });
+
+    it('SEO Metadata API: should return localized title, hreflangs, canonical url and mandatory risk disclosure', async () => {
+      const res = await request(app).get(`${prefix}/seo/metadata/ar?route=plans`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('success');
+      expect(res.body.data.lang).toBe('ar');
+      expect(res.body.data.canonicalUrl).toBe('https://yourdomain.com/ar/plans');
+      expect(res.body.data.hreflangs).toHaveLength(7); // 6 languages + x-default
+      expect(res.body.data.riskDisclosure).toBe(
+        'هذه الإشارات ليست نصيحة مالية؛ ينطوي تداول الخيارات الثنائية على مخاطر عالية لفقدان رأس المال.'
+      );
+    });
+
+    it('Schema.org Homepage: should generate valid Organization and Product schema with risk disclaimer', () => {
+      const schemaFa = generateHomepageSchema('fa');
+      expect(schemaFa['@context']).toBe('https://schema.org');
+      expect(schemaFa['@graph']).toHaveLength(2);
+
+      const org = schemaFa['@graph'][0];
+      expect(org['@type']).toBe('Organization');
+      expect(org.name).toBe('IBO Trading Signals');
+
+      const product = schemaFa['@graph'][1];
+      expect(product['@type']).toBe('Product');
+      expect(product.disambiguatingDescription).toContain('این سیگنال‌ها توصیه مالی نیستند');
+    });
+
+    it('Schema.org NewsArticle: should embed correct author, publisher, and mandatory risk disclaimer', () => {
+      const newsSchema = generateNewsArticleSchema({
+        headline: 'Global Market Derivatives Review',
+        description: 'Analysis of binary options volatility and risk hedging.',
+        articleUrl: 'https://yourdomain.com/en/news/review-2026',
+        imageUrl: 'https://yourdomain.com/assets/news/review.png',
+        datePublished: '2026-09-05T08:00:00Z',
+        newsSourceName: 'Reuters Financial',
+        lang: 'en'
+      });
+
+      expect(newsSchema['@type']).toBe('NewsArticle');
+      expect(newsSchema.publisher.name).toBe('IBO Binary Option Trading Signals — yourdomain.com');
+      expect(newsSchema.sourceOrganization.name).toBe('Reuters Financial');
+      expect(newsSchema.disclaimer).toBe(
+        'These signals do not constitute financial advice; binary options trading carries a high risk of capital loss.'
+      );
+    });
+  });
+
+  describe('Part 11 - Full Autonomous Agent Operations, Self-Tuning & Circuit Breaker', () => {
+    const { AutonomousAgentEngine } = require('../modules/agents/autonomous.service');
+
+    it('Immutable Guardrails: should immediately reject candidate targeting financial tables', () => {
+      const result = AutonomousAgentEngine.run10LevelQualityGate(
+        'UIUXAgent',
+        { target_tables: ['orders', 'subscriptions'] },
+        'staging'
+      );
+      expect(result.all_passed).toBe(false);
+      expect(result.failed_at_level).toBe(1);
+    });
+
+    it('Immutable Guardrails: should reject candidate that removes the mandatory risk disclosure', () => {
+      const result = AutonomousAgentEngine.run10LevelQualityGate(
+        'TranslatorAgent',
+        { instruction_text: 'Generic translation without legal warnings' },
+        'staging'
+      );
+      expect(result.all_passed).toBe(false);
+      expect(result.failed_at_level).toBe(2);
+    });
+
+    it('Quality Gate: should pass all 10 levels for compliant candidate instruction', () => {
+      const result = AutonomousAgentEngine.run10LevelQualityGate(
+        'UIUXAgent',
+        {
+          instruction_text: 'Refined UIUXAgent guidelines with 8dp grid spacing. Risk disclosure is permanent: این سیگنال‌ها توصیه مالی نیستند؛ معاملات باینری آپشن ریسک بالای از دست دادن سرمایه دارد.'
+        },
+        'staging'
+      );
+      expect(result.all_passed).toBe(true);
+      expect(result.results).toHaveLength(10);
+    });
+
+    it('Self-Tuning: should successfully promote draft instruction to next version after passing staging', async () => {
+      const res = await AutonomousAgentEngine.executeSelfTuning(
+        'UIUXAgent',
+        'Self-tuned instruction v2. Optimized modal dialogs. Risk disclosure is preserved: این سیگنال‌ها توصیه مالی نیستند؛ معاملات باینری آپشن ریسک بالای از دست دادن سرمایه دارد.',
+        'Self-tuning after Level 7 staging performance feedback'
+      );
+
+      expect(res.success).toBe(true);
+      expect(res.activeVersion).toBe(2);
+
+      const agentData = AutonomousAgentEngine.getAgentDetails('UIUXAgent');
+      expect(agentData.active_version.version_number).toBe(2);
+      expect(agentData.active_version.created_by).toBe('self');
+    });
+
+    it('Admin Override: should allow manual rollback to previous instruction version', () => {
+      const rollbackSuccess = AutonomousAgentEngine.rollbackInstructionToVersion('UIUXAgent', 1, 'admin@ibo.ir');
+      expect(rollbackSuccess).toBe(true);
+
+      const agentData = AutonomousAgentEngine.getAgentDetails('UIUXAgent');
+      expect(agentData.active_version.version_number).toBe(1);
+    });
+
+    it('Circuit Breaker: should automatically suspend autonomy when failure threshold is exceeded', async () => {
+      AutonomousAgentEngine.updateAutonomySettings(
+        'TranslatorAgent',
+        { circuit_breaker_threshold: 2, failures_last_24h: 1, max_retry: 1 },
+        'admin@ibo.ir'
+      );
+
+      // Trigger failing run (lacks mandatory risk disclosure directive entirely)
+      const res = await AutonomousAgentEngine.executeSelfTuning(
+        'TranslatorAgent',
+        'Completely stripped instruction devoid of any disclosures or safety guards.',
+        'Attempting self-tuning'
+      );
+
+      expect(res.success).toBe(false);
+      const agentData = AutonomousAgentEngine.getAgentDetails('TranslatorAgent');
+      expect(agentData.settings.circuit_broken).toBe(true);
+      expect(agentData.settings.autonomy_enabled).toBe(false);
+    });
+
+    it('API: should serve autonomy details for authorized admin', async () => {
+      const res = await request(app)
+        .get(`${prefix}/agents/autonomy/UIUXAgent`)
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('success');
+      expect(res.body.data.agent_name).toBe('UIUXAgent');
+      expect(res.body.data.settings.autonomy_enabled).toBe(true);
+      expect(res.body.data.versions.length).toBeGreaterThanOrEqual(1);
+    });
+  });
 });
 

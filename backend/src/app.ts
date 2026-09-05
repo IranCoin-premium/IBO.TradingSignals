@@ -13,6 +13,8 @@ import adminRouter from './modules/admin/admin.routes';
 import supportRouter from './modules/support/support.routes';
 import devopsRouter from './modules/devops/devops.routes';
 import paymentsRouter from './modules/payments/payments.routes';
+import seoRouter from './modules/seo/seo.routes';
+import { getSitemapXml } from './modules/seo/seo.service';
 import { authenticateToken, requireRoles } from './middleware/auth';
 import { logger } from './utils/logger';
 
@@ -91,6 +93,10 @@ app.use(`${prefix}/agents`, agentsRouter);
 
 // SUPPORT & LOCALIZATION APIS
 app.use(`${prefix}/support`, supportRouter);
+
+// SEO & METADATA APIS
+app.use(`${prefix}/seo`, seoRouter);
+app.get('/sitemap.xml', getSitemapXml as any);
 
 // DEVOPS & OBSERVABILITY APIS
 app.use(`${prefix}/devops`, devopsRouter);
