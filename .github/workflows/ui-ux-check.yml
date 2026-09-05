@@ -1,0 +1,44 @@
+name: Scheduled UI/UX Compliance Check
+
+on:
+  schedule:
+    # Run 4 times a day (every 6 hours: 00:00, 06:00, 12:00, 18:00 UTC)
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for manual execution'
+        required: false
+        default: 'Manual UI/UX audit trigger'
+
+jobs:
+  ui-ux-audit:
+    name: Run UI/UX Agent Audit & Risk Disclosure Verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: './backend/package-lock.json'
+
+      - name: Install Dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Execute UI/UX Audit Script
+        working-directory: ./backend
+        env:
+          APP_ENV: production
+          BACKEND_API_URL: ${{ secrets.BACKEND_API_URL || 'https://api.ibo.ir' }}
+          AGENT_AUTH_TOKEN: ${{ secrets.AGENT_AUTH_TOKEN }}
+        run: |
+          echo "=== Starting Scheduled UI/UX Compliance Audit ==="
+          echo "Verifying: Mandatory Risk Disclosures, Touch Target Sizing (48dp), RTL/LTR Layouts"
+          npx ts-node src/scripts/audit-ui-ux.ts

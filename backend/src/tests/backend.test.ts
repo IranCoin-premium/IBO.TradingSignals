@@ -449,4 +449,102 @@ describe('IBO Trading Signals Backend Integration Tests', () => {
       expect(res.body.enabled).toBe(true);
     });
   });
+
+  describe('Part 6 - Master UI/UX Agent & 10-Level Quality Gate with Auto-Rollback', () => {
+    // Import the Agent
+    const { UIUXAgent } = require('../agents/ui-ux-agent/ui-ux-agent');
+    const { BrandProtectionGuard } = require('../agents/ui-ux-agent/brand-guard');
+    const { TenLevelTester } = require('../agents/ui-ux-agent/ten-level-tester');
+    const { AutoDebugRollbackHandler } = require('../agents/ui-ux-agent/auto-rollback-handler');
+
+    it('Constraint 1: should reject any proposal that attempts to modify protected brand assets', async () => {
+      const agent = new UIUXAgent();
+      const maliciousProposal = {
+        componentTarget: 'logo_redesign',
+        changeType: 'STYLE_DRIFT',
+        targetFiles: ['public/logo.png', 'app/src/main/res/drawable/ic_ibo_logo.xml'],
+        diffSummary: 'Attempted to change logo colors',
+        styleDriftPercentage: 2.0,
+        beforeState: { 'public/logo.png': '<original_logo>' },
+        afterState: { 'public/logo.png': '<modified_logo>' }
+      };
+
+      const result = await agent.processUIProposal(maliciousProposal);
+      expect(result.approved).toBe(false);
+      expect(result.uiChangeRecord.rolledBack).toBe(true);
+      expect(result.message).toContain('VETO: Modification of protected brand asset');
+    });
+
+    it('Constraint 2: should reject any proposal that removes the mandatory risk disclosure', async () => {
+      const brandGuard = new BrandProtectionGuard();
+      const mandatoryText = brandGuard.getMandatoryRiskDisclosure();
+
+      const proposal = {
+        componentTarget: 'login_modal',
+        changeType: 'MODAL_CONVERSION',
+        targetFiles: ['frontend/src/pages/Login.tsx'],
+        diffSummary: 'Removed footer notice',
+        styleDriftPercentage: 2.5,
+        beforeState: {
+          'frontend/src/pages/Login.tsx': `<div>Login Form</div><div>${mandatoryText}</div>`
+        },
+        afterState: {
+          'frontend/src/pages/Login.tsx': `<div>Login Form without disclosure</div>`
+        }
+      };
+
+      const check = brandGuard.validateProposal(proposal);
+      expect(check.allowed).toBe(false);
+      expect(check.violation).toContain('removes mandatory risk disclosure');
+    });
+
+    it('Quality Gate: should successfully pass all 10 test levels for compliant modal conversion', async () => {
+      const agent = new UIUXAgent();
+      const proposal = agent.createAuthModalConversionProposal();
+
+      const result = await agent.processUIProposal(proposal);
+      expect(result.approved).toBe(true);
+      expect(result.uiChangeRecord.levelTestStatus).toBe('PASSED_LEVEL_10');
+      expect(result.uiChangeRecord.rolledBack).toBe(false);
+      expect(result.uiChangeRecord.retryCount).toBe(0);
+      expect(result.uiChangeRecord.humanReviewRequired).toBe(false);
+    });
+
+    it('Auto-Debug Handler: should rollback and retry when a simulated intermediate level failure occurs', async () => {
+      const handler = new AutoDebugRollbackHandler(3);
+      const agent = new UIUXAgent();
+      const proposal = agent.createAuthModalConversionProposal();
+
+      // Simulate Level 4 failure on attempt 1, pass on attempt 2
+      const simErrors = {
+        1: { 4: 'Focus trap failed on initial render' }
+      };
+
+      const result = await handler.executeWithAutoDebugGovernance(proposal, simErrors);
+      expect(result.status).toBe('PASSED_LEVEL_10');
+      expect(result.totalAttempts).toBe(2);
+      expect(result.history[0].passed).toBe(false);
+      expect(result.history[0].rollbackPerformed).toBe(true);
+      expect(result.history[1].passed).toBe(true);
+    });
+
+    it('Auto-Debug Governance: should exhaust retries and flag for human review after 3 failures', async () => {
+      const handler = new AutoDebugRollbackHandler(3);
+      const agent = new UIUXAgent();
+      const proposal = agent.createAuthModalConversionProposal();
+
+      // Simulate failure on all 3 attempts (e.g. Level 8 RTL failure)
+      const persistentErrors = {
+        1: { 8: 'RTL padding misaligned in Persian locale' },
+        2: { 8: 'RTL padding still misaligned' },
+        3: { 8: 'RTL layout broken' }
+      };
+
+      const result = await handler.executeWithAutoDebugGovernance(proposal, persistentErrors);
+      expect(result.status).toBe('CANCELLED_MAX_RETRIES_EXCEEDED');
+      expect(result.totalAttempts).toBe(3);
+      expect(result.finalRecord.rolledBack).toBe(true);
+      expect(result.finalRecord.humanReviewRequired).toBe(true);
+    });
+  });
 });

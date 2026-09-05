@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "version": "1.0.0",
+  "description": "Protected IBO Brand Assets and Identity Files. Modifying, replacing, or regenerating these paths by any AI Agent is STRICTLY PROHIBITED.",
+  "protected_brand_assets": [
+    "app/src/main/res/mipmap-*/ic_launcher*",
+    "app/src/main/res/drawable/ic_ibo_logo.xml",
+    "app/src/main/res/drawable/ibo_brand_watermark.xml",
+    "public/logo.png",
+    "public/logo.svg",
+    "public/favicon.ico",
+    "public/assets/branding/*",
+    "backend/src/assets/logo.png",
+    "brand-assets.json"
+  ],
+  "brand_colors": {
+    "primary": "#0A2540",
+    "accent_gold": "#FFB800",
+    "bull_green": "#00C087",
+    "bear_red": "#FF3B30",
+    "background_dark": "#0D1117",
+    "surface_card": "#161B22"
+  },
+  "mandatory_disclosures": {
+    "trading_risk_fa": "این سیگنال‌ها توصیه مالی نیستند؛ معاملات باینری آپشن ریسک بالای از دست دادن سرمایه دارد.",
+    "trading_risk_en": "These signals do not constitute financial advice; binary options trading carries a high risk of capital loss."
+  }
+}

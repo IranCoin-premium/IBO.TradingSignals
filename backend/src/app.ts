@@ -5,12 +5,13 @@ import { errorHandler } from './middleware/error';
 import { getHealth } from './modules/health/health.controller';
 import { register, login, getProfile } from './modules/users/users.controller';
 import { getPlans, getCurrentSubscription } from './modules/subscriptions/subscriptions.controller';
-import { checkout, verifyPayment, createPurchaseIntent, getPurchaseIntent, cancelSubscription, issueRefund, handleWebhook } from './modules/payments/payments.controller';
+import { checkout, verifyPayment, createPurchaseIntent, getPurchaseIntent, cancelSubscription, issueRefund, handleWebhook, handleNowPaymentsWebhook } from './modules/payments/payments.controller';
 import { getSignals, createSignal } from './modules/signals/signals.controller';
 import { scanSecurity } from './modules/admin/admin.controller';
 import agentsRouter from './modules/agents/agents.routes';
 import supportRouter from './modules/support/support.routes';
 import devopsRouter from './modules/devops/devops.routes';
+import paymentsRouter from './modules/payments/payments.routes';
 import { authenticateToken, requireRoles } from './middleware/auth';
 import { logger } from './utils/logger';
 
@@ -74,6 +75,8 @@ app.get(`${prefix}/purchases/:id`, authenticateToken as any, getPurchaseIntent a
 app.post(`${prefix}/subscriptions/:id/cancel`, authenticateToken as any, cancelSubscription as any);
 app.post(`${prefix}/payments/webhooks/:provider`, handleWebhook as any);
 app.post(`${prefix}/admin/subscriptions/refund`, authenticateToken as any, requireRoles(['ADMIN', 'SUPER_ADMIN']) as any, issueRefund as any);
+app.use(`${prefix}/payments`, paymentsRouter);
+app.use(`${prefix}`, paymentsRouter);
 
 // SIGNALS APIS
 app.get(`${prefix}/signals`, authenticateToken as any, getSignals as any);

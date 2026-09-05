@@ -48,3 +48,12 @@ Every event dispatched from the backend to n8n or received from an external webh
 ## 4. Deployment Model
 
 n8n is deployed alongside the backend service via Docker Compose (`docker-compose.yml`), utilizing an isolated internal Docker bridge network (`ibo_network`) with persistent volume storage (`n8n_data`).
+
+For standalone or VPS-less cloud deployment, refer to `docker-compose.n8n.yml` and `/N8N_AND_AUTOMATION_STRATEGY.md` for Render.com and Railway.app deployment recipes.
+
+---
+
+## 5. Summary on VPS-less Automation
+
+> **"n8n دائمی نیاز به یک سرویس Always-On دارد (حتی رایگان‌ترین PaaS)؛ GitHub Actions/Codespace جایگزین کامل آن نیست اما برای بخش قابل‌توجهی از اتوماسیون‌های زمان‌بندی‌شده (نه Webhook زنده) می‌تواند رایگان و بدون n8n جایگزین شود."**
+

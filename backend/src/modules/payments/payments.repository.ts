@@ -296,5 +296,214 @@ export class PaymentsRepository {
     }
     return false;
   }
+
+  // --- PART 04: PAYMENT GATEWAY INTEGRATIONS ---
+
+  static async submitPaymentReceipt(orderId: string, filePath: string, trackingCode: string): Promise<any> {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const receiptRes = await client.query(
+        `INSERT INTO payment_receipts (order_id, file_path, tracking_code, review_status)
+         VALUES ($1, $2, $3, 'pending')
+         RETURNING *`,
+        [orderId, filePath, trackingCode]
+      );
+
+      await client.query(
+        `UPDATE orders SET status = 'awaiting_manual_review', updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+        [orderId]
+      );
+
+      await client.query(
+        `INSERT INTO audit_logs (actor, action, target_entity, after_state)
+         VALUES ('human_admin', 'RECEIPT_SUBMITTED', 'orders', $1)`,
+        [JSON.stringify({ orderId, trackingCode, filePath })]
+      );
+
+      await client.query('COMMIT');
+      return receiptRes.rows[0];
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  static async reviewPaymentReceipt(
+    receiptId: string,
+    reviewedBy: string,
+    reviewStatus: 'approved' | 'rejected',
+    reason?: string
+  ): Promise<any> {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const receiptRes = await client.query(
+        `SELECT r.*, o.user_id, o.plan_id, o.amount FROM payment_receipts r
+         JOIN orders o ON r.order_id = o.id
+         WHERE r.id = $1 FOR UPDATE`,
+        [receiptId]
+      );
+
+      if (!receiptRes.rowCount || receiptRes.rowCount === 0) {
+        throw new Error('Receipt not found');
+      }
+
+      const receipt = receiptRes.rows[0];
+
+      await client.query(
+        `UPDATE payment_receipts 
+         SET review_status = $1, reviewed_by = $2, reviewed_at = CURRENT_TIMESTAMP
+         WHERE id = $3`,
+        [reviewStatus, reviewedBy, receiptId]
+      );
+
+      if (reviewStatus === 'approved') {
+        // Mark Order as paid
+        await client.query(
+          `UPDATE orders SET status = 'paid', updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+          [receipt.order_id]
+        );
+
+        // Fetch Plan details to calculate subscription duration
+        const planRes = await client.query('SELECT duration_days FROM plans WHERE id = $1', [receipt.plan_id]);
+        const durationDays = planRes.rows[0]?.duration_days || 30;
+
+        const startAt = new Date();
+        const endAt = new Date();
+        endAt.setDate(endAt.getDate() + durationDays);
+
+        // Activate Subscription
+        await client.query(
+          `INSERT INTO subscriptions (user_id, plan_id, status, start_at, end_at, payment_method)
+           VALUES ($1, $2, 'active', $3, $4, 'card_to_card')`,
+          [receipt.user_id, receipt.plan_id, startAt, endAt]
+        );
+
+        // Audit log
+        await client.query(
+          `INSERT INTO audit_logs (actor, action, target_entity, after_state)
+           VALUES ('human_admin', 'RECEIPT_APPROVED', 'orders', $1)`,
+          [JSON.stringify({ orderId: receipt.order_id, receiptId, status: 'PAID' })]
+        );
+      } else {
+        await client.query(
+          `UPDATE orders SET status = 'failed', updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+          [receipt.order_id]
+        );
+
+        await client.query(
+          `INSERT INTO audit_logs (actor, action, target_entity, after_state)
+           VALUES ('human_admin', 'RECEIPT_REJECTED', 'orders', $1)`,
+          [JSON.stringify({ orderId: receipt.order_id, receiptId, status: 'FAILED', reason })]
+        );
+      }
+
+      await client.query('COMMIT');
+      return { receiptId, reviewStatus, orderId: receipt.order_id };
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  static async createInstallmentPlan(
+    orderId: string,
+    totalAmount: number,
+    installmentCount: number = 4
+  ): Promise<any[]> {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const installmentAmount = (totalAmount / installmentCount).toFixed(8);
+      const createdInstallments = [];
+
+      for (let i = 1; i <= installmentCount; i++) {
+        const dueDate = new Date();
+        dueDate.setMonth(dueDate.getMonth() + (i - 1));
+
+        const res = await client.query(
+          `INSERT INTO installments (order_id, installment_number, due_date, status, amount)
+           VALUES ($1, $2, $3, $4, $5)
+           RETURNING *`,
+          [orderId, i, dueDate, i === 1 ? 'pending' : 'pending', installmentAmount]
+        );
+        createdInstallments.push(res.rows[0]);
+      }
+
+      await client.query('COMMIT');
+      return createdInstallments;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  static async markInstallmentPaid(
+    orderId: string,
+    installmentNumber: number
+  ): Promise<boolean> {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const res = await client.query(
+        `UPDATE installments SET status = 'paid', paid_at = CURRENT_TIMESTAMP
+         WHERE order_id = $1 AND installment_number = $2
+         RETURNING *`,
+        [orderId, installmentNumber]
+      );
+
+      if (installmentNumber === 1 && res.rowCount && res.rowCount > 0) {
+        // First installment paid -> Activate subscription
+        await client.query(
+          `UPDATE orders SET status = 'paid', updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+          [orderId]
+        );
+
+        const orderRes = await client.query(
+          `SELECT o.user_id, o.plan_id, o.payment_method, p.duration_days 
+           FROM orders o JOIN plans p ON o.plan_id = p.id WHERE o.id = $1`,
+          [orderId]
+        );
+
+        if (orderRes.rowCount && orderRes.rowCount > 0) {
+          const row = orderRes.rows[0];
+          const startAt = new Date();
+          const endAt = new Date();
+          endAt.setDate(endAt.getDate() + (row.duration_days || 30));
+
+          await client.query(
+            `INSERT INTO subscriptions (user_id, plan_id, status, start_at, end_at, payment_method)
+             VALUES ($1, $2, 'active', $3, $4, $5)`,
+            [row.user_id, row.plan_id, startAt, endAt, row.payment_method]
+          );
+        }
+      }
+
+      await client.query('COMMIT');
+      return true;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  static async logWebhook(source: string, payload: any, processed: boolean = false): Promise<void> {
+    await query(
+      `INSERT INTO webhooks_log (source, raw_payload, processed)
+       VALUES ($1, $2, $3)`,
+      [source, JSON.stringify(payload), processed]
+    );
+  }
 }
 

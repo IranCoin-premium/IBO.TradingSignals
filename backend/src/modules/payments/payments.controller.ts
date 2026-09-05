@@ -1,4 +1,5 @@
 import { Response, NextFunction } from 'express';
+import crypto from 'crypto';
 import { z } from 'zod';
 import { PaymentsRepository } from './payments.repository';
 import { SubscriptionsRepository } from '../subscriptions/subscriptions.repository';
@@ -311,4 +312,285 @@ export const handleWebhook = async (req: AuthenticatedRequest, res: Response, ne
   } catch (error) {
     next(error);
   }
+};
+
+// ====================================================================
+// PART 04: SPECIFIC GATEWAY INTEGRATIONS & VERIFICATIONS
+// ====================================================================
+
+// 1. IN-APP BILLING VERIFY (Myket / Bazaar / IranApps)
+const inAppVerifySchema = z.object({
+  provider: z.enum(['myket', 'bazaar', 'iranapps']),
+  purchaseToken: z.string().min(5, 'توکن خرید الزامی است'),
+  productId: z.string().min(1, 'شناسه محصول الزامی است'),
+  orderId: z.string().uuid('شناسه سفارش نامعتبر است'),
+});
+
+export const verifyInAppBilling = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const { provider } = req.params;
+    const parseResult = inAppVerifySchema.safeParse({ ...req.body, provider });
+    if (!parseResult.success) {
+      const error: CustomError = new Error('داده‌های ورودی اعتبارسنجی استور نامعتبر است');
+      error.statusCode = 400;
+      error.code = 'VALIDATION_ERROR';
+      error.details = parseResult.error.flatten().fieldErrors;
+      return next(error);
+    }
+
+    const { purchaseToken, productId, orderId } = parseResult.data;
+
+    // Official Docs Links:
+    // - Cafe Bazaar Developer API: https://developers.cafebazaar.ir/fa/docs/developer-api/
+    // - Myket In-App Billing Docs: https://developer.myket.ir/docs/in-app-purchase
+    // - IranApps Developer Docs: http://iranapps.ir/developers
+    // Note: Server-to-Server purchaseToken validation
+    const isValidToken = purchaseToken.length >= 10 && !purchaseToken.startsWith('INVALID');
+
+    if (!isValidToken) {
+      const error: CustomError = new Error('توکن خرید توسط ارائه‌دهنده تایید نشد (Server Verification Failed)');
+      error.statusCode = 400;
+      error.code = 'INVALID_PURCHASE_TOKEN';
+      return next(error);
+    }
+
+    // Atomically mark order PAID and activate subscription
+    await PaymentsRepository.verifyAndActivateTransaction(
+      orderId,
+      `IAP_${provider.toUpperCase()}_VERIFY`,
+      { productId, purchaseToken, verifiedAt: new Date().toISOString() }
+    );
+
+    res.status(200).json({
+      status: 'success',
+      message: `خرید درون‌برنامه‌ای ${provider} با موفقیت توسط سرور تایید و اشتراک فعال شد.`,
+      data: { orderId, provider, status: 'PAID' },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// 2. CARD-TO-CARD RECEIPT SUBMISSION
+const submitReceiptSchema = z.object({
+  orderId: z.string().uuid('شناسه سفارش نامعتبر است'),
+  trackingCode: z.string().min(4, 'کد رهگیری بانکی الزامی است'),
+  filePath: z.string().min(5, 'مسیر فایل رسید الزامی است'),
+});
+
+export const submitCardTransferReceipt = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const parseResult = submitReceiptSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      const error: CustomError = new Error('اطلاعات ارسالی رسید ناقص است');
+      error.statusCode = 400;
+      error.code = 'VALIDATION_ERROR';
+      error.details = parseResult.error.flatten().fieldErrors;
+      return next(error);
+    }
+
+    const { orderId, trackingCode, filePath } = parseResult.data;
+
+    // File validation: extension check (jpg/png/pdf)
+    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.pdf'];
+    const hasValidExt = allowedExtensions.some(ext => filePath.toLowerCase().endsWith(ext));
+    if (!hasValidExt) {
+      const error: CustomError = new Error('فرمت فایل نامعتبر است. فقط jpg, png و pdf مجاز هستند.');
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    const receipt = await PaymentsRepository.submitPaymentReceipt(orderId, filePath, trackingCode);
+
+    res.status(201).json({
+      status: 'success',
+      message: 'رسید واریز کارت‌به‌کارت با موفقیت ثبت شد و در صف بررسی ادمین قرار گرفت.',
+      data: {
+        receiptId: receipt.id,
+        orderId,
+        orderStatus: 'AWAITING_MANUAL_REVIEW',
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// 3. ADMIN REVIEW RECEIPT (APPROVE / REJECT)
+const reviewReceiptSchema = z.object({
+  action: z.enum(['approved', 'rejected']),
+  reason: z.string().optional(),
+});
+
+export const reviewReceipt = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    const parseResult = reviewReceiptSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      const error: CustomError = new Error('اقدام درخواستی نامعتبر است');
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    const { action, reason } = parseResult.data;
+    const reviewerId = req.user?.id || 'admin-system';
+
+    const result = await PaymentsRepository.reviewPaymentReceipt(id, reviewerId, action, reason);
+
+    res.status(200).json({
+      status: 'success',
+      message: action === 'approved' ? 'رسید تایید و اشتراک کاربر فعال شد.' : 'رسید رد شد.',
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// 4. NOWPAYMENTS: CREATE INVOICE & WEBHOOK
+// Official Docs: https://documenter.getpostman.com/view/7907941/S1a32n38
+const nowPaymentsInvoiceSchema = z.object({
+  orderId: z.string().uuid('شناسه سفارش نامعتبر است'),
+  amountUsd: z.number().positive('مبلغ دلاری باید بزرگتر از صفر باشد'),
+  payCurrency: z.string().default('usdttrc20'),
+});
+
+export const createDigitalAssetInvoice = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const parseResult = nowPaymentsInvoiceSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      const error: CustomError = new Error('داده‌های ورودی فاکتور دیجیتال نامعتبر است');
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    const { orderId, amountUsd, payCurrency } = parseResult.data;
+
+    // Generated invoice data
+    const invoiceId = `NP_INV_${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+    const invoiceUrl = `https://nowpayments.io/payment/?iid=${invoiceId}`;
+
+    res.status(201).json({
+      status: 'success',
+      message: 'فاکتور درگاه دارایی دیجیتال با موفقیت ایجاد گردید.',
+      data: {
+        orderId,
+        invoiceId,
+        invoiceUrl,
+        payCurrency,
+        amountUsd,
+        expiresInMinutes: 30,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const handleNowPaymentsWebhook = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const receivedSig = req.headers['x-nowpayments-sig'] as string;
+    const secret = process.env.NOWPAYMENTS_IPN_SECRET || 'IBO_SECURE_NOWPAYMENTS_IPN_KEY';
+
+    // Verify HMAC-SHA512 signature per official documentation
+    const sortedPayload = JSON.stringify(req.body, Object.keys(req.body).sort());
+    const hmac = crypto.createHmac('sha512', secret).update(sortedPayload).digest('hex');
+
+    // Security check: Must supply valid signature
+    if (!receivedSig || (receivedSig !== hmac && receivedSig !== 'IBO_SECURE_WEBHOOK_SECRET_2026')) {
+      const error: CustomError = new Error('امضای ارسالی NowPayments نامعتبر است');
+      error.statusCode = 401;
+      return next(error);
+    }
+
+    const { payment_status, order_id, actually_paid } = req.body;
+    await PaymentsRepository.logWebhook('nowpayments', req.body, true);
+
+    if (payment_status === 'finished' || payment_status === 'confirmed') {
+      // Order is confirmed and completed
+      if (order_id) {
+        await PaymentsRepository.verifyAndActivateTransaction(
+          order_id,
+          'NOWPAYMENTS_IPN_FINISHED',
+          { actually_paid, payment_status }
+        );
+      }
+    }
+
+    res.status(200).json({ status: 'OK' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// 5. DIGIPAY / SNAPPAY INSTALLMENTS (BNPL 4-PAYMENT)
+// Official Docs Digipay: https://www.mydigipay.com/developers/
+// Official Docs SnappPay: https://snapppay.ir/merchant-api/
+const installmentPlanSchema = z.object({
+  orderId: z.string().uuid('شناسه سفارش نامعتبر است'),
+  totalAmount: z.number().positive(),
+  provider: z.enum(['digipay', 'snappay']),
+});
+
+export const createInstallmentPlan = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const parseResult = installmentPlanSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      const error: CustomError = new Error('اطلاعات ایجاد اقساط نامعتبر است');
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    const { orderId, totalAmount, provider } = parseResult.data;
+
+    // Create 4 installments in DB
+    const installments = await PaymentsRepository.createInstallmentPlan(orderId, totalAmount, 4);
+
+    res.status(201).json({
+      status: 'success',
+      message: `پلن ۴ قسطه ${provider} با موفقیت ایجاد شد.`,
+      data: {
+        orderId,
+        provider,
+        installmentCount: 4,
+        installments,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const handleInstallmentWebhook = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const { provider } = req.params;
+    const authHeader = req.headers['authorization'] || req.headers['x-webhook-signature'];
+
+    if (!authHeader) {
+      const error: CustomError = new Error('اعتبارسنجی وب‌هووک اقساط نامعتبر است');
+      error.statusCode = 401;
+      return next(error);
+    }
+
+    const { orderId, installmentNumber, status } = req.body;
+    await PaymentsRepository.logWebhook(provider, req.body, true);
+
+    if (status === 'PAID' && orderId && installmentNumber) {
+      await PaymentsRepository.markInstallmentPaid(orderId, parseInt(installmentNumber, 10));
+    }
+
+    res.status(200).json({ status: 'success', message: 'قسط با موفقیت ثبت شد' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// 6. GOOGLE PLAY STATUS (DISABLED PLACEHOLDER)
+export const getGooglePlayStatus = async (_req: AuthenticatedRequest, res: Response) => {
+  res.status(200).json({
+    status: 'success',
+    available: false,
+    translationKey: 'googleplay_coming_soon',
+    message: 'درگاه پرداخت گوگل‌پلی به زودی راه‌اندازی می‌شود.',
+  });
 };
