@@ -547,4 +547,222 @@ describe('IBO Trading Signals Backend Integration Tests', () => {
       expect(result.finalRecord.humanReviewRequired).toBe(true);
     });
   });
+
+  describe('Part 7 - Localization, Geo-IP, Translator Agent & 24/7 AI Support', () => {
+    const { GeoIpService } = require('../modules/support/geoip.service');
+    const { TranslatorAgent } = require('../agents/translator-agent/translator-agent');
+    const { SupportAIAgent } = require('../agents/support-agent/support-ai-agent');
+
+    it('Geo-IP: should accurately map IP/country headers to the 6 target languages and direction', () => {
+      expect(GeoIpService.detectLanguageFromIp('127.0.0.1', 'IR').suggestedLanguage).toBe('fa');
+      expect(GeoIpService.detectLanguageFromIp('127.0.0.1', 'IR').direction).toBe('rtl');
+
+      expect(GeoIpService.detectLanguageFromIp('127.0.0.1', 'SA').suggestedLanguage).toBe('ar');
+      expect(GeoIpService.detectLanguageFromIp('127.0.0.1', 'SA').direction).toBe('rtl');
+
+      expect(GeoIpService.detectLanguageFromIp('127.0.0.1', 'IN').suggestedLanguage).toBe('hi');
+      expect(GeoIpService.detectLanguageFromIp('127.0.0.1', 'IN').direction).toBe('ltr');
+
+      expect(GeoIpService.detectLanguageFromIp('127.0.0.1', 'TR').suggestedLanguage).toBe('tr');
+      expect(GeoIpService.detectLanguageFromIp('127.0.0.1', 'TR').direction).toBe('ltr');
+
+      expect(GeoIpService.detectLanguageFromIp('127.0.0.1', 'RU').suggestedLanguage).toBe('ru');
+      expect(GeoIpService.detectLanguageFromIp('127.0.0.1', 'RU').direction).toBe('ltr');
+
+      expect(GeoIpService.detectLanguageFromIp('127.0.0.1', 'US').suggestedLanguage).toBe('en');
+      expect(GeoIpService.detectLanguageFromIp('127.0.0.1', 'US').direction).toBe('ltr');
+    });
+
+    it('Translator Quality Gate: should reject translations with forbidden placeholders or omitted risk disclosures', () => {
+      const translator = new TranslatorAgent();
+
+      // Case 1: Forbidden placeholder
+      const badPlaceholder = translator.validatePrePublish(
+        'Call Signal 5m Expiry',
+        'TODO: سیگنال خرید ۵ دقیقه',
+        'fa'
+      );
+      expect(badPlaceholder.valid).toBe(false);
+      expect(badPlaceholder.errors[0]).toContain('forbidden placeholder');
+
+      // Case 2: Missing template variable
+      const missingVariable = translator.validatePrePublish(
+        'Amount: {amount} USDT for {asset}',
+        'مبلغ: ۵۰ تتر برای دارایی',
+        'fa'
+      );
+      expect(missingVariable.valid).toBe(false);
+      expect(missingVariable.errors[0]).toContain('Missing template variable');
+
+      // Case 3: Omitted mandatory risk disclosure
+      const omittedRisk = translator.validatePrePublish(
+        'Warning: high risk of capital loss',
+        'هشدار: این یک معامله است',
+        'fa'
+      );
+      expect(omittedRisk.valid).toBe(false);
+      expect(omittedRisk.errors[0]).toContain('Mandatory risk disclosure is missing');
+
+      // Case 4: Valid translation with preserved risk disclosure
+      const valid = translator.validatePrePublish(
+        'high risk of capital loss in binary trading',
+        'معاملات باینری آپشن ریسک بالای از دست دادن سرمایه دارد.',
+        'fa'
+      );
+      expect(valid.valid).toBe(true);
+    });
+
+    it('Support AI Agent: must truthfully disclose AI identity when asked "Are you human?"', async () => {
+      const supportAgent = new SupportAIAgent();
+
+      // Ask in Persian
+      const resFa = await supportAgent.processMessage('آیا شما انسان هستید یا ربات؟', {
+        languageCode: 'fa'
+      });
+      expect(resFa.isAiDisclosed).toBe(true);
+      expect(resFa.reply).toContain('من دستیار هوش مصنوعی پشتیبانی ۲۴ ساعته');
+      expect(resFa.reply).toContain('ریسک بالای از دست دادن سرمایه دارد');
+
+      // Ask in English
+      const resEn = await supportAgent.processMessage('Are you a human or an AI bot?', {
+        languageCode: 'en'
+      });
+      expect(resEn.isAiDisclosed).toBe(true);
+      expect(resEn.reply).toContain('Yes, I am the 24/7 AI Support Assistant');
+      expect(resEn.reply).toContain('high risk of capital loss');
+
+      // Ask in Turkish
+      const resTr = await supportAgent.processMessage('Sen insan mısın yoksa bot musun?', {
+        languageCode: 'tr'
+      });
+      expect(resTr.isAiDisclosed).toBe(true);
+      expect(resTr.reply).toContain('Yapay Zeka Destek Asistanıyım');
+    });
+
+    it('API: should serve 24/7 AI chat, detect language and return active languages', async () => {
+      // 1. Languages endpoint
+      const langRes = await request(app).get(`${prefix}/support/localization/languages`);
+      expect(langRes.status).toBe(200);
+      expect(langRes.body.languages).toHaveLength(6);
+      expect(langRes.body.languages.map((l: any) => l.code)).toEqual(['fa', 'en', 'ar', 'hi', 'tr', 'ru']);
+
+      // 2. Translations endpoint
+      const transRes = await request(app).get(`${prefix}/support/localization/translations/ar`);
+      expect(transRes.status).toBe(200);
+      expect(transRes.body.translations.risk_disclosure).toContain('تداول الخيارات الثنائية');
+
+      // 3. 24/7 AI Chat endpoint
+      const chatRes = await request(app)
+        .post(`${prefix}/support/chat`)
+        .send({
+          message: 'آیا شما ربات هستید؟',
+          languageCode: 'fa'
+        });
+      expect(chatRes.status).toBe(200);
+      expect(chatRes.body.isAiDisclosed).toBe(true);
+      expect(chatRes.body.riskDisclosureIncluded).toBe(true);
+    });
+  });
+
+  describe('Part 8 - Media Assets, Style Reference Rotation & Video Agent', () => {
+    const { MediaAgent } = require('../agents/media-agent/media-agent');
+
+    it('Constraint 1: should reject generation prompts with forbidden third-party trademarks', () => {
+      const agent = new MediaAgent();
+
+      const resBinance = agent.checkPromptCompliance('Cryptocurrency trading chart on Binance platform');
+      expect(resBinance.allowed).toBe(false);
+      expect(resBinance.reason).toContain('forbidden third-party trademark');
+
+      const resNasdaq = agent.checkPromptCompliance('Nasdaq tech stock price jump');
+      expect(resNasdaq.allowed).toBe(false);
+      expect(resNasdaq.reason).toContain('nasdaq');
+
+      const validPrompt = agent.checkPromptCompliance('Futuristic financial trading dashboard with golden candlesticks');
+      expect(validPrompt.allowed).toBe(true);
+    });
+
+    it('Constraint 2: should reject prompts containing misleading claims or guaranteed profits', () => {
+      const agent = new MediaAgent();
+
+      const resGuaranteed = agent.checkPromptCompliance('Show trader with guaranteed profit and 100% win rate');
+      expect(resGuaranteed.allowed).toBe(false);
+      expect(resGuaranteed.reason).toContain('misleading');
+
+      const resFarsi = agent.checkPromptCompliance('کسب سود تضمینی بدون ریسک در معامله');
+      expect(resFarsi.allowed).toBe(false);
+    });
+
+    it('Aspect Ratios: should automatically allocate appropriate aspect ratios based on purpose', () => {
+      const agent = new MediaAgent();
+
+      // News: 16:9 banner & 9:16 mobile story
+      expect(agent.getRequiredAspectRatios('news')).toEqual(['16:9', '9:16']);
+
+      // Journal: 3:2 blog cover & 1:1 square
+      expect(agent.getRequiredAspectRatios('journal')).toEqual(['3:2', '1:1']);
+
+      // Marketing: All 5 ratios
+      expect(agent.getRequiredAspectRatios('marketing')).toEqual(['1:1', '16:9', '9:16', '4:5', '3:2']);
+    });
+
+    it('Style Reference Rotation: should retain permanent logo and select up to 9 candidates', () => {
+      const agent = new MediaAgent();
+
+      // Mock 12 weekly candidates
+      const mockCandidates = Array.from({ length: 12 }).map((_, i) => ({
+        id: `med_mock_${i}`,
+        type: 'image',
+        purpose: 'marketing',
+        sourceUrl: `https://cdn.example.com/${i}.png`,
+        aspectRatio: '1:1',
+        hasWatermark: true,
+        hasLogo: true,
+        createdByAgent: 'agent-media',
+        isStyleReference: false,
+        isPermanentLogoReference: false,
+        complianceStatus: 'VERIFIED',
+        createdAt: new Date().toISOString()
+      }));
+
+      const rotation = agent.rotateWeeklyStyleReferences(mockCandidates, '2026-W36');
+
+      expect(rotation.retainedPermanentLogoId).toBe('00000000-0000-0000-0000-000000000001');
+      // 1 permanent logo + up to 9 selected images = 10 total
+      expect(rotation.newStyleReferenceIds).toHaveLength(10);
+      expect(rotation.newStyleReferenceIds[0]).toBe('00000000-0000-0000-0000-000000000001');
+    });
+
+    it('Video Generation: should convert image into 15-60s teaser video with watermark and logo', () => {
+      const agent = new MediaAgent();
+
+      const mockImage = {
+        id: 'med_base_image_123',
+        type: 'image' as const,
+        purpose: 'news' as const,
+        sourceUrl: 'https://cdn.example.com/base.png',
+        aspectRatio: '16:9' as const,
+        hasWatermark: true,
+        hasLogo: true,
+        createdByAgent: 'agent-media',
+        isStyleReference: false,
+        isPermanentLogoReference: false,
+        complianceStatus: 'VERIFIED' as const,
+        platformBrandingText: 'IBO Binary Option Trading Signals — yourdomain.com',
+        bgRemovalMethod: 'none' as const,
+        createdAt: new Date().toISOString()
+      };
+
+      const video = agent.generateMotionVideoFromImage({
+        sourceImage: mockImage,
+        durationSeconds: 30
+      });
+
+      expect(video.type).toBe('video');
+      expect(video.durationSeconds).toBe(30);
+      expect(video.hasWatermark).toBe(true);
+      expect(video.hasLogo).toBe(true);
+      expect(video.styleReferenceId).toBe('med_base_image_123');
+    });
+  });
 });
