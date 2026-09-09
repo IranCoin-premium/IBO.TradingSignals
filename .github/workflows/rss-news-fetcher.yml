@@ -1,0 +1,43 @@
+name: Scheduled RSS News Feed Fetcher & Journal Dispatcher
+
+on:
+  schedule:
+    # Run every hour at minute 15
+    - cron: '15 * * * *'
+  workflow_dispatch:
+    inputs:
+      feed_category:
+        description: 'Category to fetch (crypto, forex, commodities)'
+        required: false
+        default: 'all'
+
+jobs:
+  fetch-and-dispatch-news:
+    name: Fetch External RSS Feeds and Ingest into Monolith Backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: './backend/package-lock.json'
+
+      - name: Install Dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Fetch Feeds and Ingest to Backend
+        working-directory: ./backend
+        env:
+          APP_ENV: production
+          BACKEND_API_URL: ${{ secrets.BACKEND_API_URL || 'https://api.ibo.ir' }}
+          AGENT_AUTH_TOKEN: ${{ secrets.AGENT_AUTH_TOKEN }}
+        run: |
+          echo "=== Fetching Macro Financial RSS Feeds ==="
+          npx ts-node src/scripts/fetch-rss-news.ts

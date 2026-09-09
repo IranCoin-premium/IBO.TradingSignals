@@ -1,0 +1,39 @@
+package com.example.data.local
+
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import androidx.room.Update
+import kotlinx.coroutines.flow.Flow
+
+@Dao
+interface NewsDao {
+    @Query("SELECT * FROM news ORDER BY timestamp DESC")
+    fun getAllNews(): Flow<List<NewsEntity>>
+
+    @Query("SELECT * FROM news WHERE category = :category ORDER BY timestamp DESC")
+    fun getNewsByCategory(category: String): Flow<List<NewsEntity>>
+
+    @Query("SELECT * FROM news WHERE impact = 'HIGH' ORDER BY timestamp DESC")
+    fun getHighImpactNews(): Flow<List<NewsEntity>>
+
+    @Query("SELECT * FROM news WHERE id = :id LIMIT 1")
+    suspend fun getNewsById(id: Long): NewsEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertNews(item: NewsEntity): Long
+
+    @androidx.room.Transaction
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(items: List<NewsEntity>)
+
+    @Update
+    suspend fun updateNews(item: NewsEntity)
+
+    @Query("DELETE FROM news WHERE id = :id")
+    suspend fun deleteNewsById(id: Long)
+
+    @Query("SELECT COUNT(*) FROM news")
+    suspend fun getCount(): Int
+}

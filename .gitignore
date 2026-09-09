@@ -1,0 +1,24 @@
+*.iml
+.gradle
+.kotlin
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+.env
+# Keystore files
+*.keystore
+!debug.keystore
+
+# Leaked conversation transcripts / scratch dumps
+*_daqi*.json
+1788653154845_daqi1.json

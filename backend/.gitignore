@@ -1,0 +1,24 @@
+# Compiled output
+dist/
+node_modules/
+
+# Local secret configurations
+.env
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Testing coverage outputs
+coverage/
+
+# IDE files
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp

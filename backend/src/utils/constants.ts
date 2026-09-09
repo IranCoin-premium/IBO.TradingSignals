@@ -1,0 +1,2 @@
+// Immutable, permanent legal risk disclosure (referenced by every public payload)
+export const RISK_DISCLOSURE_LINE = 'این سیگنال‌ها توصیه مالی نیستند؛ معاملات باینری آپشن ریسک بالای از دست دادن سرمایه دارد.';

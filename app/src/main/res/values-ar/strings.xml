@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">إيران خيارات ثنائية</string>
+    <string name="nav_signals">إشارات التداول</string>
+    <string name="nav_subscription">اشتراك VIP</string>
+    <string name="nav_support">الدعم 24/7</string>
+    <string name="support_title">الدعم الذكي على مدار الساعة</string>
+    <string name="support_submit">إرسال التذكرة</string>
+    <string name="tab_referral_partner">الشراكة والإحالة</string>
+    <string name="tab_sales_partnership">التعاون في البيع</string>
+    <string name="tab_affiliate_dashboard">لوحة الأفلييت</string>
+    <string name="referral_risk_disclosure">هذه الإشارات ليست نصيحة مالية؛ تداول الخيارات الثنائية ينطوي على مخاطر عالية لخسارة رأس المال.</string>
+</resources>

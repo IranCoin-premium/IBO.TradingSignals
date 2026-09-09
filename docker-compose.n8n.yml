@@ -1,0 +1,46 @@
+version: '3.8'
+
+# ====================================================================
+# Standalone n8n Deployment Spec for PaaS (Render.com, Railway.app, Fly.io)
+# Non-Critical Event Orchestration & Notifications
+# ====================================================================
+
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    container_name: ibo_n8n_automation
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      # General Configuration
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_ADMIN_USER:-ibo_orchestrator}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_ADMIN_PASSWORD:-ChangeThisSecurePass2026!}
+      - N8N_HOST=${N8N_DOMAIN:-n8n-ibo.onrender.com}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=https
+      - WEBHOOK_URL=https://${N8N_DOMAIN:-n8n-ibo.onrender.com}/
+      - GENERIC_TIMEZONE=Asia/Tehran
+
+      # Security & Isolation
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+      - N8N_DISABLE_PRODUCTION_MAIN_PROCESS=false
+      - EXECUTIONS_DATA_PRUNE=true
+      - EXECUTIONS_DATA_MAX_AGE=168 # 7 days retention
+
+      # Database Configuration (Can connect to external PostgreSQL on Render/Railway)
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=${DB_HOST:-postgres.render.internal}
+      - DB_POSTGRESDB_PORT=${DB_PORT:-5432}
+      - DB_POSTGRESDB_DATABASE=${DB_NAME:-ibo_n8n_db}
+      - DB_POSTGRESDB_USER=${DB_USER:-ibo_n8n_user}
+      - DB_POSTGRESDB_PASSWORD=${DB_PASSWORD:-secure_db_pass}
+      - DB_POSTGRESDB_SCHEMA=public
+
+    volumes:
+      - n8n_storage:/home/node/.n8n
+
+volumes:
+  n8n_storage:
+    driver: local

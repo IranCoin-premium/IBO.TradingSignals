@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">Iran Binary Option</string>
+    <string name="nav_signals">Trading Signals</string>
+    <string name="nav_subscription">VIP Subscription</string>
+    <string name="nav_support">24/7 Support</string>
+    <string name="support_title">24/7 Intelligent Support</string>
+    <string name="support_submit">Submit Ticket</string>
+    <string name="tab_referral_partner">Referral &amp; Partnership</string>
+    <string name="tab_sales_partnership">Sales Partnership</string>
+    <string name="tab_affiliate_dashboard">Affiliate Dashboard</string>
+    <string name="referral_risk_disclosure">These signals are not financial advice; binary options trading carries a high risk of capital loss.</string>
+</resources>

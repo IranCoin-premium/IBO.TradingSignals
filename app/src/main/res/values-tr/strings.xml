@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">İran İkili Opsiyon</string>
+    <string name="nav_signals">İşlem Sinyalleri</string>
+    <string name="nav_subscription">VIP Abonelik</string>
+    <string name="nav_support">7/24 Destek</string>
+    <string name="support_title">7/24 Akıllı Destek</string>
+    <string name="support_submit">Talep Gönder</string>
+    <string name="tab_referral_partner">Referans ve Ortaklık</string>
+    <string name="tab_sales_partnership">Satış Ortaklığı</string>
+    <string name="tab_affiliate_dashboard">Affiliate Paneli</string>
+    <string name="referral_risk_disclosure">Bu sinyaller finansal tavsiye değildir; ikili opsiyon işlemleri sermaye kaybı yüksek riski taşır.</string>
+</resources>

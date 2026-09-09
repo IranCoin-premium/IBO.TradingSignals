@@ -1,0 +1,45 @@
+name: Scheduled Image and Visual Assets Generation
+
+on:
+  schedule:
+    # Run once daily at 04:00 AM UTC (before European & Asian morning sessions)
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+    inputs:
+      target_theme:
+        description: 'Visual theme or asset purpose (news, journal, marketing)'
+        required: false
+        default: 'news'
+
+jobs:
+  generate-visuals:
+    name: Run AI Visuals Agent with Watermark & Brand Verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: './backend/package-lock.json'
+
+      - name: Install Dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Run Image Generation & Watermark Validation
+        working-directory: ./backend
+        env:
+          APP_ENV: production
+          BACKEND_API_URL: ${{ secrets.BACKEND_API_URL || 'https://api.ibo.ir' }}
+          AGENT_AUTH_TOKEN: ${{ secrets.AGENT_AUTH_TOKEN }}
+          STORAGE_BUCKET_URL: ${{ secrets.STORAGE_BUCKET_URL }}
+        run: |
+          echo "=== Starting AI Media Asset Generation ==="
+          echo "Rule: Every visual must have IBO Official Logo and High-Risk Trading Disclosure watermark"
+          npx ts-node src/scripts/generate-media-assets.ts

@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">Opción Binaria Irán</string>
+    <string name="nav_signals">Señales de Trading</string>
+    <string name="nav_subscription">Suscripción VIP</string>
+    <string name="nav_support">Soporte 24/7</string>
+    <string name="support_title">Soporte Inteligente 24/7</string>
+    <string name="support_submit">Enviar Ticket</string>
+    <string name="tab_referral_partner">Referidos y Socios</string>
+    <string name="tab_sales_partnership">Colaboración de ventas</string>
+    <string name="tab_affiliate_dashboard">Panel de afiliados</string>
+    <string name="referral_risk_disclosure">Estas señales no son asesoramiento financiero; operar opciones binarias conlleva un alto riesgo de pérdida de capital.</string>
+</resources>

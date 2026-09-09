@@ -1,0 +1,66 @@
+name: UI/UX Continuous Evolution Agent (Every 4 Hours)
+
+on:
+  schedule:
+    # Run every 4 hours (6 times per 24h: 00:00, 04:00, 08:00, 12:00, 16:00, 20:00 UTC)
+    - cron: '0 */4 * * *'
+  workflow_dispatch:
+    inputs:
+      target_scope:
+        description: 'Specific component or UI scope to audit'
+        required: false
+        default: 'all_ui'
+      max_retries:
+        description: 'Auto-debug max retry attempts'
+        required: false
+        default: '3'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  run-ui-ux-agent:
+    name: Run UI/UX Agent with 10-Level Gate and Auto-Rollback
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Setup Node.js 20 Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: './backend/package-lock.json'
+
+      - name: Install Dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Verify Brand Assets Integrity
+        run: |
+          echo "=== Step 1: Pre-run Brand Assets Inviolability Check ==="
+          if [ ! -f "brand-assets.json" ]; then
+            echo "ERROR: brand-assets.json is missing!"
+            exit 1
+          fi
+          echo "Brand assets protection config verified."
+
+      - name: Run UI/UX Agent Runner
+        working-directory: ./backend
+        env:
+          APP_ENV: production
+          TARGET_SCOPE_DIR: 'frontend,app/src/main,public'
+          RESTRICTED_MODE: 'true'
+          MAX_AUTODEBUG_RETRIES: ${{ github.event.inputs.max_retries || '3' }}
+          AGENT_AUTH_TOKEN: ${{ secrets.AGENT_AUTH_TOKEN }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          echo "=== Step 2: Executing UI/UX Agent with 10-Level Test Chain ==="
+          echo "Restrictions: Brand assets protected, Max visual drift <= 8%, Audit log mandatory"
+          npx ts-node src/agents/ui-ux-agent/runner.ts

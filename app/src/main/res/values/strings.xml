@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ایران باینری آپشن</string>
+    <string name="nav_signals">سیگنال‌ها</string>
+    <string name="nav_subscription">اشتراک</string>
+    <string name="nav_support">پشتیبانی</string>
+    <string name="nav_profile">پروفایل</string>
+    <string name="risk_disclosure_title">سلب مسئولیت و بیانیه ریسک</string>
+    <string name="risk_disclosure_content">معاملات باینری آپشن ریسک بالایی برای سرمایه شما دارد. سیگنال‌های ارائه شده صرفاً جنبه پیشنهادی و تحلیلی داشته و به هیچ وجه توصیه قطعی مالی محسوب نمی‌شوند. پلتفرم ایران باینری آپشن هیچ‌گونه مسئولیتی در قبال ضررهای احتمالی شما بر عهده نمی‌گیرد.</string>
+    <string name="accept_risk">قوانین و ریسک را می‌پذیرم</string>
+    <string name="referral_risk_disclosure">شرکت در سیستم زیرمجموعه‌گیری به معنای تضمین سود برای تریدرهای جدید نیست. پورسانت‌ها تنها در صورت خرید اشتراک توسط دوستان پرداخت می‌شود. تمامی مسئولیت‌های معاملاتی بر عهده کاربر است.</string>
+</resources>
