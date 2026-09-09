@@ -21,18 +21,26 @@ android {
     // Step 2(b): version derived from the git tag that triggered the release (e.g. tag
     // v1.4.2 -> versionName "1.4.2"). ZERO manual edits of build.gradle.kts per release.
     // versionCode is deterministic from versionName (major*1000000 + minor*1000 + patch,
-    // tag vX.Y.Z -> X*1000000 + Y*1000 + Z). androidTest/local builds without a tag fall
-    // back to the last reachable tag, or 0.0.0 / 1 if none exists.
-    val releaseTag = providers.exec {
-      commandLine("git", "describe", "--tags", "--abbrev=0", "--match", "v*")
-      isIgnoreExitValue = true
-    }.standardOutput.asText.get().trim().removePrefix("v").takeIf { it.isNotEmpty() } ?: "0.0.0"
-    val tagParts = releaseTag.split(".").map { it.toIntOrNull() ?: 0 }
-    val derivedVersionCode = (tagParts.getOrElse(0) { 0 } * 1000000) +
-      (tagParts.getOrElse(1) { 0 } * 1000) + tagParts.getOrElse(2) { 0 }
-    versionCode = (System.getenv("VERSION_CODE_OVERRIDE")?.toIntOrNull() ?: derivedVersionCode)
-      .coerceAtLeast(3)
-    versionName = System.getenv("VERSION_NAME_OVERRIDE") ?: tagParts.joinToString(".")
+    // tag vX.Y.Z -> X*1000000 + Y*1000 + Z).
+    // Reads from app/version.properties (kept in sync with the latest tag by the workflow
+    // before the build). Falls back to the latest reachable git tag when the file is absent
+    // (local dev). androidTest/local builds without either fall back to 0.0.0 / code 1.
+    val versionPropsFile = file("app/version.properties")
+    val (derivedCode, derivedName) = if (versionPropsFile.exists()) {
+      val p = java.util.Properties().apply { versionPropsFile.inputStream().use { load(it) } }
+      val name = p.getProperty("versionName", "0.0.0")
+      p.getProperty("versionCode", "1").toIntOrNull() to name
+    } else {
+      val tag = providers.exec {
+        commandLine("git", "describe", "--tags", "--abbrev=0", "--match", "v*")
+        isIgnoreExitValue = true
+      }.standardOutput.asText.get().trim().removePrefix("v").takeIf { it.isNotEmpty() } ?: "0.0.0"
+      val parts = tag.split(".").map { it.toIntOrNull() ?: 0 }
+      val code = (parts.getOrElse(0) { 0 } * 1000000) + (parts.getOrElse(1) { 0 } * 1000) + parts.getOrElse(2) { 0 }
+      code to tag
+    }
+    versionCode = (System.getenv("VERSION_CODE_OVERRIDE")?.toIntOrNull() ?: derivedCode).coerceAtLeast(3)
+    versionName = System.getenv("VERSION_NAME_OVERRIDE") ?: derivedName
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }

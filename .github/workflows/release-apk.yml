@@ -31,6 +31,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history so git describe can see tags
 
       - name: Decode signing keystore from secrets
         run: |
@@ -68,6 +70,15 @@ jobs:
 
       - name: Run FULL 10-LEVEL GATE
         run: bash scripts/verify-full-10level.sh
+
+      - name: Generate version.properties from tag
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          IFS='.' read -r MAJOR MINOR PATCH <<< "${TAG}0.0.0"
+          CODE=$((MAJOR*1000000 + MINOR*1000 + (PATCH)))
+          printf 'versionCode=%s\nversionName=%s\n' "$CODE" "$TAG" > app/version.properties
+          echo "generated: versionCode=$CODE versionName=$TAG"
+          cat app/version.properties
 
       - name: Assert signing material present (fail the workflow, not silently)
         run: |
