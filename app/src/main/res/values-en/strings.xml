@@ -9,4 +9,6 @@
     <string name="tab_sales_partnership">Sales Partnership</string>
     <string name="tab_affiliate_dashboard">Affiliate Dashboard</string>
     <string name="referral_risk_disclosure">These signals are not financial advice; binary options trading carries a high risk of capital loss.</string>
+    <string name="google_web_client_id">461156293791-1enp0rnearl8c0iurq9o6pdavqq6c42o.apps.googleusercontent.com</string>
+    <string name="google_sign_in_button">Sign in with Google</string>
 </resources>

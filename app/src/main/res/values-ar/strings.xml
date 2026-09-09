@@ -9,4 +9,6 @@
     <string name="tab_sales_partnership">التعاون في البيع</string>
     <string name="tab_affiliate_dashboard">لوحة الأفلييت</string>
     <string name="referral_risk_disclosure">هذه الإشارات ليست نصيحة مالية؛ تداول الخيارات الثنائية ينطوي على مخاطر عالية لخسارة رأس المال.</string>
+    <string name="google_web_client_id">461156293791-1enp0rnearl8c0iurq9o6pdavqq6c42o.apps.googleusercontent.com</string>
+    <string name="google_sign_in_button">تسجيل الدخول بحساب جوجل</string>
 </resources>

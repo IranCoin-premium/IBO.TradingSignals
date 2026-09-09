@@ -9,4 +9,6 @@
     <string name="tab_sales_partnership">Colaboración de ventas</string>
     <string name="tab_affiliate_dashboard">Panel de afiliados</string>
     <string name="referral_risk_disclosure">Estas señales no son asesoramiento financiero; operar opciones binarias conlleva un alto riesgo de pérdida de capital.</string>
+    <string name="google_web_client_id">461156293791-1enp0rnearl8c0iurq9o6pdavqq6c42o.apps.googleusercontent.com</string>
+    <string name="google_sign_in_button">Iniciar sesión con Google</string>
 </resources>
