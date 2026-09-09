@@ -7,6 +7,7 @@ plugins {
   alias(libs.plugins.roborazzi)
   alias(libs.plugins.secrets)
   alias(libs.plugins.google.services)
+  alias(libs.plugins.firebase.crashlytics)
 }
 
 android {
@@ -157,6 +158,7 @@ dependencies {
   // Firestore dependency:
   implementation(libs.firebase.firestore)
   implementation(libs.firebase.messaging)
+  implementation(libs.firebase.crashlytics)
 
   // Firebase Auth and Google Sign-In via Credential Manager:
   implementation(libs.firebase.auth)

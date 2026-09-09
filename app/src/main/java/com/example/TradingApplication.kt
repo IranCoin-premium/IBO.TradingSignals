@@ -5,6 +5,7 @@ import android.util.Log
 import com.example.fcm.FcmNotificationHelper
 import com.example.fcm.FirebaseAppInitializer
 import com.example.di.appModule
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.core.context.GlobalContext
@@ -32,6 +33,9 @@ class TradingApplication : Application() {
             FirebaseAppInitializer.ensureInitialized(this)
             // Create notification channel for Android 8.0+
             FcmNotificationHelper.initNotificationChannel(this)
+            // Crashlytics: enable collection (no-op until google-services.json is present;
+            // collection auto-disables in debug builds per default Firebase behavior)
+            FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(true)
         } catch (e: Exception) {
             Log.w("TradingApplication", "Startup initialization warning: ${e.message}")
         }
