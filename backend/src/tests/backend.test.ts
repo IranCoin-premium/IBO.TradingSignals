@@ -349,7 +349,7 @@ describe('IBO Trading Signals Backend Integration Tests', () => {
     it('should accept and process webhook with valid signature', async () => {
       const res = await request(app)
         .post(`${prefix}/payments/webhooks/tether`)
-        .set('X-Webhook-Signature', 'IBO_SECURE_WEBHOOK_SECRET_2026')
+        .set('X-Webhook-Signature', process.env.PAYMENTS_WEBHOOK_SECRET as string)
         .send({
           transactionId: '11112222-3333-4444-5555-666677778888',
           eventType: 'payment_confirmed',

@@ -102,10 +102,10 @@ class TradingViewModel(
     val offlineCacheStatus: StateFlow<OfflineCacheSyncStatus> = offlineCacheManager.syncStatus
 
     val brokers: List<BrokerItem> = listOf(
-        BrokerItem("pocket", "Pocket Option", "پاکت آپشن", "۹۲٪", true, "سریع", "$۵۰", "معتبر", "پیشنهادی", "بهترین بروکر برای کاربران ایرانی"),
-        BrokerItem("quotex", "Quotex", "کوتکس", "۸۹٪", true, "عالی", "$۱۰", "معتبر", "محبوب", "پلتفرم مدرن و ساده"),
-        BrokerItem("iq", "IQ Option", "آی‌کیو آپشن", "۹۴٪", false, "فوق‌العاده", "$۱۰", "محدود", "حرفه‌ای", "قدیمی‌ترین و معتبرترین"),
-        BrokerItem("alpari", "Alpari Fixed", "آلپاری فیکس", "۸۵٪", false, "متوسط", "$۱", "معتبر", "اقتصادی", "مناسب برای مبالغ پایین")
+        BrokerItem("pocket", "Pocket Option", "پاکت آپشن", "۹۲٪", true, "سریع", "$۵۰", "معتبر", "پیشنهادی", "بهترین بروکر برای کاربران ایرانی", regulation = "ثبت‌شده MISA (کومورو) — نظارت آفشور"),
+        BrokerItem("quotex", "Quotex", "کوتکس", "۸۹٪", true, "عالی", "$۱۰", "معتبر", "محبوب", "پلتفرم مدرن و ساده", regulation = "آفشور (SVG) — بدون نظارت معتبر"),
+        BrokerItem("iq", "IQ Option", "آی‌کیو آپشن", "۹۴٪", false, "فوق‌العاده", "$۱۰", "محدود", "حرفه‌ای", "قدیمی‌ترین و معتبرترین", regulation = "مجوز CySEC (سابق، 247/14) — نظارت محدود"),
+        BrokerItem("alpari", "Alpari Fixed", "آلپاری فیکس", "۸۵٪", false, "متوسط", "$۱", "معتبر", "اقتصادی", "مناسب برای مبالغ پایین", regulation = "آفشور — سابقاً تحت نظارت FCA")
     )
 
     private val _currentUser = MutableStateFlow<UserEntity?>(null)

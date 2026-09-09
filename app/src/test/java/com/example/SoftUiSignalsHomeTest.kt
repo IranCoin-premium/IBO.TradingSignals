@@ -120,6 +120,9 @@ class SoftUiSignalsHomeTest {
 
         // Verify Signals header and cards exist
         composeTestRule.onNodeWithText("آپشن‌های معاملاتی").assertExists()
+        // LazyColumn only materializes viewport-visible items in the (small) headless
+        // test window — scroll the lazy list to the signal card before asserting.
+        composeTestRule.onNode(hasScrollAction()).performScrollToNode(hasText("EUR/USD"))
         composeTestRule.onNodeWithText("EUR/USD").assertExists()
 
         // 3. Click on "عملکرد" tab

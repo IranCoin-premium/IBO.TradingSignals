@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Timeline
+import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -290,6 +291,37 @@ fun BrokerTimelineMarquee(
                     ) {
                         Text("وضعیت اتصال به سیگنال‌ها:", color = TextDarkSecondary, fontSize = 12.sp)
                         Text(broker.status, color = SoftCardCyanAccent, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+
+                    // P1.10 — بج شفافیت رگولاتوری: وضعیت نظارت رسمی هر بروکر
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(SoftCardPeachAccent.copy(alpha = 0.08f))
+                            .padding(horizontal = 10.dp, vertical = 8.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.VerifiedUser,
+                                contentDescription = null,
+                                tint = SoftCardPeachAccent,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                "وضعیت رگولاتوری (نظارت رسمی):",
+                                color = TextDarkSecondary,
+                                fontSize = 11.sp
+                            )
+                        }
+                        Text(
+                            text = broker.regulation,
+                            color = SoftCardPeachAccent,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
                     }
                 }
             },

@@ -276,8 +276,9 @@ export const handleWebhook = async (req: AuthenticatedRequest, res: Response, ne
     const { provider } = req.params;
     const webhookSecret = req.headers['x-webhook-signature'];
 
-    // Webhook Signature Security Validation
-    if (!webhookSecret || webhookSecret !== 'IBO_SECURE_WEBHOOK_SECRET_2026') {
+    // Webhook Signature Security Validation (secret injected via env — never hardcoded)
+    const expectedWebhookSecret = process.env.PAYMENTS_WEBHOOK_SECRET;
+    if (!webhookSecret || !expectedWebhookSecret || webhookSecret !== expectedWebhookSecret) {
       const error: CustomError = new Error('امضای وب‌هووک ارسالی نامعتبر یا گم شده است');
       error.statusCode = 401;
       return next(error);
@@ -490,14 +491,19 @@ export const createDigitalAssetInvoice = async (req: AuthenticatedRequest, res: 
 export const handleNowPaymentsWebhook = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const receivedSig = req.headers['x-nowpayments-sig'] as string;
-    const secret = process.env.NOWPAYMENTS_IPN_SECRET || 'IBO_SECURE_NOWPAYMENTS_IPN_KEY';
+    const secret = process.env.NOWPAYMENTS_IPN_SECRET;
+    if (!secret) {
+      const error: CustomError = new Error('کلید IPN درگاه دارایی دیجیتال در سرور تنظیم نشده است');
+      error.statusCode = 503;
+      return next(error);
+    }
 
     // Verify HMAC-SHA512 signature per official documentation
     const sortedPayload = JSON.stringify(req.body, Object.keys(req.body).sort());
     const hmac = crypto.createHmac('sha512', secret).update(sortedPayload).digest('hex');
 
-    // Security check: Must supply valid signature
-    if (!receivedSig || (receivedSig !== hmac && receivedSig !== 'IBO_SECURE_WEBHOOK_SECRET_2026')) {
+    // Security check: Must supply valid signature (strict HMAC only — no legacy fallback)
+    if (!receivedSig || receivedSig !== hmac) {
       const error: CustomError = new Error('امضای ارسالی NowPayments نامعتبر است');
       error.statusCode = 401;
       return next(error);

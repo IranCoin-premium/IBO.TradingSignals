@@ -7,16 +7,24 @@ import com.example.fcm.FirebaseAppInitializer
 import com.example.di.appModule
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
+import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
 
 class TradingApplication : Application() {
     override fun onCreate() {
         super.onCreate()
-        
-        startKoin {
-            androidLogger()
-            androidContext(this@TradingApplication)
-            modules(appModule)
+
+        // Idempotent Koin bootstrap: in Robolectric/Roborazzi unit tests every test
+        // creates a fresh Application instance, but Koin's GlobalContext is a JVM-wide
+        // singleton — calling startKoin unconditionally throws
+        // KoinApplicationAlreadyStartedException. Guard keeps prod behaviour identical
+        // (onCreate runs once) while making repeated test startups safe.
+        if (GlobalContext.getOrNull() == null) {
+            startKoin {
+                androidLogger()
+                androidContext(this@TradingApplication)
+                modules(appModule)
+            }
         }
 
         try {

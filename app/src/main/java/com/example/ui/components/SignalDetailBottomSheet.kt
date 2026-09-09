@@ -39,6 +39,7 @@ import androidx.compose.material.icons.filled.RateReview
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Storefront
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -64,6 +65,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -72,6 +74,7 @@ import androidx.compose.ui.unit.sp
 import com.example.data.local.SignalEntity
 import com.example.ui.theme.SoftCardCyanAccent
 import com.example.ui.theme.SoftCardCyanGradient
+import com.example.R
 import com.example.ui.theme.SoftCardMintAccent
 import com.example.ui.theme.SoftCardMintGradient
 import com.example.ui.theme.SoftCardPeachAccent
@@ -911,6 +914,46 @@ fun SignalDetailBottomSheet(
                             }
                         }
                     }
+                }
+            }
+
+            // 9. Mandatory Risk Disclosure (P1.10) — تک‌منبع حقیقت از strings.xml
+            item {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(SoftCardPeachAccent.copy(alpha = 0.08f))
+                        .border(
+                            1.dp,
+                            SoftCardPeachAccent.copy(alpha = 0.35f),
+                            RoundedCornerShape(14.dp)
+                        )
+                        .padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = SoftCardPeachAccent,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(R.string.risk_disclosure_title),
+                            color = SoftCardPeachAccent,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
+                    }
+                    Text(
+                        text = stringResource(R.string.risk_disclosure_content),
+                        color = TextDarkSecondary,
+                        fontSize = 11.sp,
+                        lineHeight = 16.sp,
+                        modifier = Modifier.testTag("signal_detail_risk_disclosure")
+                    )
                 }
             }
         }

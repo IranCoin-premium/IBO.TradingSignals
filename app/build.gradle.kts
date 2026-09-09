@@ -25,17 +25,18 @@ android {
 
   signingConfigs {
     create("release") {
-      // Deterministic project keystore (committed) so every build shares ONE signature
-      // and installs update in-place. Env override allowed for CI/CD without edits.
+      // Keystore is NEVER committed to the repository. Release signing material is
+      // injected via environment variables / CI secrets (KEYSTORE_PATH, STORE_PASSWORD,
+      // KEY_ALIAS, KEY_PASSWORD) — see .github/workflows/release-apk.yml and
+      // docs/RELEASE_SIGNING_SETUP.md. The stable-signature guarantee comes from CI
+      // reusing the SAME secret-backed keystore in every run, not from a tracked binary
+      // in git. Values below are configuration placeholders ONLY; hard validation for
+      // real release packaging happens in gradle.taskGraph.whenReady (fail loudly).
       val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/release.keystore"
       storeFile = file(keystorePath)
-      val isReleaseBuild = gradle.startParameter.taskNames.any { it.contains("Release") }
-      storePassword = System.getenv("STORE_PASSWORD")
-        ?: (if (isReleaseBuild) error("STORE_PASSWORD env var is required to sign a release build.") else "android")
-      keyAlias = System.getenv("KEY_ALIAS")
-        ?: (if (isReleaseBuild) error("KEY_ALIAS env var is required to sign a release build.") else "release")
-      keyPassword = System.getenv("KEY_PASSWORD")
-        ?: (if (isReleaseBuild) error("KEY_PASSWORD env var is required to sign a release build.") else "android")
+      storePassword = System.getenv("STORE_PASSWORD") ?: "android"
+      keyAlias = System.getenv("KEY_ALIAS") ?: "release"
+      keyPassword = System.getenv("KEY_PASSWORD") ?: "android"
     }
     create("debugConfig") {
       storeFile = file("${rootDir}/debug.keystore")
@@ -70,6 +71,32 @@ android {
   dependenciesInfo {
     includeInApk = false
     includeInBundle = true
+  }
+}
+
+// HARD RELEASE SIGNING VALIDATION (problems2 #1 / problems3 #3):
+// fail loudly BEFORE any release packaging task runs when signing material is
+// missing, instead of silently producing an unsigned/broken APK. Never triggers
+// for debug builds or unit-test tasks.
+gradle.taskGraph.whenReady {
+  val isReleaseAssemble = allTasks.any {
+    it.name.startsWith("assembleRelease") || it.name.startsWith("bundleRelease")
+  }
+  if (isReleaseAssemble) {
+    val missing = buildList {
+      if (System.getenv("STORE_PASSWORD").isNullOrBlank()) add("STORE_PASSWORD")
+      if (System.getenv("KEY_ALIAS").isNullOrBlank()) add("KEY_ALIAS")
+      if (System.getenv("KEY_PASSWORD").isNullOrBlank()) add("KEY_PASSWORD")
+      val ks = file(System.getenv("KEYSTORE_PATH") ?: "${rootDir}/release.keystore")
+      if (!ks.exists() || ks.length() == 0L) add("KEYSTORE_PATH (valid keystore file at $ks)")
+    }
+    if (missing.isNotEmpty()) {
+      throw GradleException(
+        "RELEASE SIGNING FAILED: missing signing material -> ${missing.joinToString()}. " +
+          "Release credentials must come from CI secrets or local env — " +
+          "see docs/RELEASE_SIGNING_SETUP.md (the keystore is never committed)."
+      )
+    }
   }
 }
 

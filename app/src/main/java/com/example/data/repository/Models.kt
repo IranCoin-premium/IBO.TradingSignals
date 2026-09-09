@@ -10,5 +10,7 @@ data class BrokerItem(
     val minDeposit: String,
     val status: String,
     val badge: String,
-    val description: String
+    val description: String,
+    // P1.10 — شفافیت رگولاتوری: وضعیت نظارت رسمی هر بروکر
+    val regulation: String = "نظارت رسمی ندارد"
 )
