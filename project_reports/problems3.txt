@@ -1,0 +1,82 @@
+SYSTEM DIRECTIVE FOR GEMINI (AI Studio / Code Assist) — ATTEMPT #3
+PROJECT: IBO Binary Option Trading Signals (Android, Kotlin)
+
+CONTEXT — READ THIS FIRST:
+Your previous response to the keystore directive was NOT a real fix. It was a cosmetic
+fix in one file (app/build.gradle.kts) while the exact same vulnerability remains
+elsewhere. Specifically:
+
+- app/build.gradle.kts now fails the build if STORE_PASSWORD is missing for a Release
+  task — good — BUT the same file's comment says the keystore is "Deterministic project
+  keystore (committed) so every build shares ONE signature", meaning you kept the
+  intentionally-committed keystore instead of removing it.
+- .github/workflows/release-apk.yml still contains, in plaintext, in the repo:
+    keytool -list -v -keystore "$GITHUB_WORKSPACE/release.keystore" -alias upload -storepass "IboRelease2026!Key"
+  This is the SAME password from two directives ago. It was never rotated. It was never
+  removed from plaintext. It was only moved out of build.gradle.kts into a workflow file,
+  which does not fix anything — it is the identical vulnerability in a different file.
+- release.keystore is still shipped in the delivered project.
+- You also added new files (project_reports/, FINAL_PRODUCTION_ATTESTATION.md,
+  project-tracking/) despite being explicitly told not to add any new documentation or
+  reports in this pass. Do not do this again.
+
+DO NOT explain, attest, or self-certify that something is fixed. Only make the changes
+below, then answer the verification checklist at the end with literal grep output, not
+prose claims.
+
+===================================================================
+REQUIRED CHANGES — NOTHING ELSE
+===================================================================
+
+1. FIND AND REMOVE EVERY PLAINTEXT OCCURRENCE OF THE OLD PASSWORD
+   Run this yourself before responding:
+     grep -rn "IboRelease2026" .
+   Every single match must be deleted or replaced — no exceptions, including inside YAML
+   workflow files, shell scripts, and markdown docs. There must be ZERO occurrences of
+   any hardcoded keystore/key password anywhere in the repository, in any file type,
+   including comments and CI workflows.
+
+2. release-apk.yml MUST PULL CREDENTIALS FROM GITHUB ACTIONS SECRETS ONLY
+   Replace the hardcoded -storepass value with a GitHub Actions secret reference, e.g.:
+     -storepass "${{ secrets.STORE_PASSWORD }}"
+   Add STORE_PASSWORD, KEY_PASSWORD, KEY_ALIAS, and (if the keystore itself is no longer
+   committed — see #3) a base64-encoded KEYSTORE_BASE64 to the list of required repo
+   secrets, and document their names (not their values) in README or CONTRIBUTING.
+
+3. STOP COMMITTING THE KEYSTORE FILE — NO EXCEPTIONS
+   Remove release.keystore from the repository entirely. Do not ship it in the project
+   archive going forward. If a signing artifact must exist for local developer builds,
+   generate a throwaway debug-only keystore (already handled by debugConfig) — the
+   release keystore must exist ONLY as a secret injected in CI (e.g. decoded from a
+   KEYSTORE_BASE64 secret into a temp file during the workflow run) or held locally by
+   the app owner outside version control. Delete the "Deterministic project keystore
+   (committed)" comment and the design decision behind it — that design decision is the
+   vulnerability, not a feature.
+
+4. GENERATE A NEW KEY — FOR REAL THIS TIME
+   Generate a brand-new release keystore with a strong random password (do not invent a
+   human-readable string). State clearly, in your response, the exact keytool command you
+   ran (without printing the actual password/output) so the human operator can verify a
+   new key was actually generated and is different from the old one. Confirm explicitly:
+   "the previous key (fingerprint ending in ...) is retired; this is a new key."
+   Remind the human operator, in one sentence, that this means real users on the old key
+   will need to reinstall once — do not soften or omit this.
+
+5. NO NEW DOCS, NO NEW REPORTS, NO ATTESTATION FILES
+   Do not create, edit, or add anything under project_reports/, project-tracking/, or any
+   new markdown/txt file whose purpose is to describe or certify the work you did. Your
+   only communication about what you did goes directly in the chat response, not into a
+   new file in the repo.
+
+===================================================================
+VERIFICATION CHECKLIST — ANSWER WITH ACTUAL COMMAND OUTPUT, NOT CLAIMS
+===================================================================
+Run and paste the real output of each of these in your response:
+
+  grep -rn "IboRelease2026" .          # must return nothing
+  grep -rn "storepass \"" .github      # must return nothing (no inline plaintext password)
+  find . -iname "release.keystore"     # must return nothing
+  grep -n "committed" app/build.gradle.kts   # must return nothing
+
+If any of these four commands returns a match, the task is NOT done — say so plainly
+instead of claiming success.

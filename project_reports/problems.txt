@@ -1,0 +1,121 @@
+SYSTEM DIRECTIVE FOR GEMINI (AI Studio / Code Assist)
+PROJECT: IBO Binary Option Trading Signals (Android, Kotlin, Jetpack Compose)
+ROLE: You are the lead engineer fixing critical build, security, and architecture defects
+found in a code review of the repository "ایران-باینری-آپشن-6.zip". Fix issues in the order
+listed. Do not skip P0 items. After each fix, explain in one line what changed and why.
+
+===================================================================
+P0 — BUILD-BREAKING (the project currently does not compile)
+===================================================================
+
+1. MISSING ANDROID RESOURCES
+   - Directories app/src/main/res/values, res/xml, res/mipmap do not exist.
+   - AndroidManifest.xml references the following resources that are not present:
+     @string/app_name, @style/Theme.MyApplication, @mipmap/ic_launcher,
+     @mipmap/ic_launcher_round, @xml/data_extraction_rules, @xml/backup_rules,
+     @color/emerald_neon, @xml/signal_widget_info
+   ACTION: Create res/values/strings.xml, colors.xml, themes.xml; res/xml/data_extraction_rules.xml
+   and backup_rules.xml; res/mipmap-* launcher icons; res/xml/signal_widget_info.xml.
+
+2. MISSING WIDGET CLASS
+   - AndroidManifest.xml declares receiver ".widget.SignalWidgetProvider" but no
+     SignalWidgetProvider.kt exists anywhere in app/src/main/java.
+   ACTION: Either implement com/example/widget/SignalWidgetProvider.kt (AppWidgetProvider)
+   with its RemoteViews layout, or remove the <receiver> block from the manifest if the
+   home-screen widget feature is not ready yet.
+
+===================================================================
+P0 — CRITICAL SECURITY VULNERABILITIES
+===================================================================
+
+3. PASSWORDS STORED AND COMPARED IN PLAINTEXT
+   - File: data/repository/TradingRepository.kt (line ~560): 
+     `return if (user != null && user.passwordHash == pass)`
+   - Field is misleadingly named "passwordHash" but never hashed anywhere in the codebase.
+   - Contradicts the project's own SECURITY.md (THR-03), which mandates bcrypt.
+   ACTION: Integrate a proper hashing library (e.g. BCrypt via at.favre.lib:bcrypt or
+   equivalent Kotlin-friendly implementation). Hash on registration/seed, verify with a
+   constant-time compare on login. Migrate existing UserEntity rows. Never store or log
+   the raw password.
+
+4. RELEASE KEYSTORE CREDENTIALS HARDCODED AND COMMITTED
+   - File: app/build.gradle.kts
+     storePassword = System.getenv("STORE_PASSWORD") ?: "IboRelease2026!Key"
+     keyPassword   = System.getenv("KEY_PASSWORD")   ?: "IboRelease2026!Key"
+   - Comment confirms the keystore file itself is committed to the repo.
+   ACTION: Remove the hardcoded fallback strings entirely. Fail the build if the env vars
+   are missing (do not silently fall back to a plaintext default). Rotate the signing key
+   if this repo has ever been pushed to a shared/public remote, since the current key must
+   be considered compromised.
+
+5. WEAK DEFAULT ADMIN CREDENTIAL IN COMMITTED TEMPLATE
+   - File: .env.example: SEED_ADMIN_PASSWORD=IranBinaryAdmin2026!
+   ACTION: Replace with a placeholder that forces the developer to generate their own
+   value (e.g. CHANGE_ME_GENERATE_STRONG_PASSWORD), and enforce a minimum-entropy check
+   at app startup (TradingApplication.kt) that refuses to seed the admin account if the
+   password matches the placeholder or fails a strength check.
+
+===================================================================
+P1 — ARCHITECTURE / MAINTAINABILITY
+===================================================================
+
+6. GOD OBJECTS
+   - TradingRepository.kt (901 lines) and TradingViewModel.kt (541 lines) each own
+     authentication, signals, news, feedback, subscriptions, broker data, and offline sync.
+   ACTION: Split into domain-scoped repositories (AuthRepository, SignalRepository,
+   NewsRepository, SubscriptionRepository, FeedbackRepository) and corresponding
+   use-case classes. Introduce Hilt (or Koin) for dependency injection instead of manual
+   construction in TradingApplication.kt.
+
+7. NO NAVIGATION GRAPH / INCOMPLETE SCREENS
+   - Only reusable Compose components exist (SignalCard, BrandHeader, AnimatedBottomNavBar,
+     etc.). There is no NavHost, no assembled Home/Login/Settings/Profile screens.
+   ACTION: Build a NavHost in MainActivity.kt (or a dedicated NavGraph.kt) wiring the
+   existing components into full screens with proper state hoisting from ViewModels.
+
+8. ZERO TEST COVERAGE
+   - Robolectric/Roborazzi are configured in build.gradle.kts but only one empty
+     ExampleInstrumentedTest.kt exists.
+   ACTION: Add unit tests for: password hashing/verification, subscription expiry logic,
+   signal filtering (SignalDao queries), and payment webhook idempotency once implemented.
+   Add at least one Roborazzi screenshot test per assembled screen.
+
+===================================================================
+P1 — PRODUCT / COMPLIANCE (specific to a binary-options signal app)
+===================================================================
+
+9. SIGNALS ARE HARDCODED MOCK DATA
+   - TradingRepository.initializeSeedData() inserts static SignalEntity rows with fixed
+     confidenceScore/winRate values — there is no real analysis engine in the client.
+   ACTION: Clarify in-app (and to Gemini if it is asked to build the analysis pipeline)
+   whether signal generation lives entirely server-side. If so, document the client
+   contract (expected FCM payload schema) explicitly in code comments in
+   IranBinaryMessagingService.kt so mock data is never mistaken for production behavior.
+
+10. RISK DISCLOSURE ONLY IN README, NOT IN THE APP ITSELF
+    - The legal disclaimer ("این سیگنال‌ها توصیه مالی نیستند...") exists only in
+      README.md.
+    ACTION: Surface a persistent, non-dismissible-on-first-run risk disclosure screen
+    before signup/payment, and repeat a short version on every signal detail view
+    (SignalDetailBottomSheet.kt). Also surface the regulatory status of each broker in
+    BrokerItem (most listed brokers are not authorized in most jurisdictions) instead of
+    only marketing copy like "پرطرفدارترین" / "امنیت بانکی".
+
+11. PAYMENT WEBHOOK IDEMPOTENCY NOT VERIFIABLE IN THIS CODEBASE
+    - SECURITY.md (THR-16) requires idempotent webhook handling for NowPayments/store
+      billing, but the backend implementing this is not included in this repository.
+    ACTION: If Gemini is generating the backend, enforce idempotency keys (transaction ID
+    uniqueness constraint) and signature verification on every payment webhook handler
+    before granting subscription credit.
+
+===================================================================
+VERIFICATION MODEL NOTE
+===================================================================
+.env.example references GEMINI_MODEL=gemini-3.6-flash — verify this is a real, currently
+available model ID before shipping; do not assume it is correct without checking current
+Gemini model documentation.
+
+===================================================================
+PRIORITY ORDER FOR GEMINI TO EXECUTE
+===================================================================
+P0.1 -> P0.2 -> P0.3 -> P0.4 -> P0.5 -> P1.6 -> P1.7 -> P1.8 -> P1.9 -> P1.10 -> P1.11

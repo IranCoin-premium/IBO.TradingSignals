@@ -1,0 +1,68 @@
+SYSTEM DIRECTIVE FOR GEMINI (AI Studio / Code Assist)
+PROJECT: IBO Binary Option Trading Signals (Android, Kotlin)
+CONTEXT: Previous directive (problems.txt) was mostly completed correctly — password
+hashing (bcrypt), missing resources, widget class, repository split (Koin DI), screens,
+and tests were all fixed properly. Do NOT touch or regress any of that work.
+
+ONE ITEM REMAINS OPEN. Fix ONLY this. Do not add new features, new backend modules, new
+docs, or restructure anything else in this pass.
+
+===================================================================
+REMAINING P0 — SIGNING KEY / KEYSTORE STILL INSECURE
+===================================================================
+
+CURRENT STATE (confirmed by review of the last delivered zip):
+1. File app/build.gradle.kts still has hardcoded fallback credentials:
+     storePassword = System.getenv("STORE_PASSWORD") ?: "android"
+     keyPassword   = System.getenv("KEY_PASSWORD")   ?: "android"
+   "android" is the well-known default password of the Android debug keystore — this is
+   not an improvement over the previous hardcoded value, it is arguably worse because it
+   is a universally known default.
+2. The binary file release.keystore is still present in the project root and is being
+   packaged/committed as part of the repository.
+
+REQUIRED FIXES (all of them, in this order):
+
+1. STOP HARDCODING SIGNING CREDENTIALS
+   - Remove the `?: "android"` fallbacks entirely from app/build.gradle.kts.
+   - If STORE_PASSWORD / KEY_PASSWORD / KEYSTORE_PATH / KEY_ALIAS env vars are not set,
+     the Gradle build must FAIL LOUDLY with a clear error message telling the developer
+     to set them — it must never silently fall back to a guessable default.
+   Example pattern to use:
+     storePassword = System.getenv("STORE_PASSWORD")
+       ?: error("STORE_PASSWORD env var is required to sign a release build.")
+
+2. REMOVE THE KEYSTORE FROM VERSION CONTROL
+   - Add `release.keystore` and `*.keystore` (except intentionally keeping
+     debug.keystore, which is low-risk) to .gitignore.
+   - Remove release.keystore from git history tracking going forward (git rm --cached
+     release.keystore). Note in your response whether full history purge (BFG / git
+     filter-repo) is also needed — flag it, do not attempt to rewrite history yourself.
+
+3. TREAT THE CURRENT KEY AS COMPROMISED
+   - Because this keystore file and its passwords have already been committed and shared
+     across multiple project deliveries, assume the current signing key is no longer
+     secret.
+   - Generate a NEW release keystore with a strong, randomly generated password (do not
+     invent a memorable/guessable string — instruct the human operator to generate one
+     with a password manager or `openssl rand -base64 32`).
+   - Clearly state in your response: switching signing keys means any app already
+     installed by real users from the old key CANNOT be silently updated in-place: users
+     will need to uninstall and reinstall once. Do not perform the key rotation silently
+     — surface this tradeoff explicitly so the human can decide the rollout plan.
+
+4. WIRE SECRETS THROUGH CI, NOT THE REPO
+   - Confirm (or add if missing) that the GitHub Actions release workflow
+     (.github/workflows/release-apk.yml) injects STORE_PASSWORD / KEY_PASSWORD /
+     KEY_ALIAS / KEYSTORE_PATH from GitHub Actions Secrets, not from any committed file.
+
+DO NOT:
+- Do not add new backend modules, new documentation files, new architecture docs, or any
+  feature unrelated to this signing/keystore issue.
+- Do not regenerate or touch AuthRepository.kt, the Koin module, the split repositories,
+  or the screens — those are already correct.
+
+DELIVERABLE: A short diff/summary limited to app/build.gradle.kts, .gitignore, and (if
+needed) the release workflow file — plus one paragraph confirming the keystore file was
+removed from tracking and a new key was generated with its password handed off securely
+(not printed in chat/logs).
