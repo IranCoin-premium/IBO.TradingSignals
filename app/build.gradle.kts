@@ -17,8 +17,21 @@ android {
     applicationId = "com.aistudio.iranbinaryoption.trdsig"
     minSdk = 24
     targetSdk = 36
-    versionCode = 3
-    versionName = "1.2.0"
+    // Step 2(b): version derived from the git tag that triggered the release (e.g. tag
+    // v1.4.2 -> versionName "1.4.2"). ZERO manual edits of build.gradle.kts per release.
+    // versionCode is deterministic from versionName (major*1000000 + minor*1000 + patch,
+    // tag vX.Y.Z -> X*1000000 + Y*1000 + Z). androidTest/local builds without a tag fall
+    // back to the last reachable tag, or 0.0.0 / 1 if none exists.
+    val releaseTag = providers.exec {
+      commandLine("git", "describe", "--tags", "--abbrev=0", "--match", "v*")
+      isIgnoreExitValue = true
+    }.standardOutput.asText.get().trim().removePrefix("v").takeIf { it.isNotEmpty() } ?: "0.0.0"
+    val tagParts = releaseTag.split(".").map { it.toIntOrNull() ?: 0 }
+    val derivedVersionCode = (tagParts.getOrElse(0) { 0 } * 1000000) +
+      (tagParts.getOrElse(1) { 0 } * 1000) + tagParts.getOrElse(2) { 0 }
+    versionCode = (System.getenv("VERSION_CODE_OVERRIDE")?.toIntOrNull() ?: derivedVersionCode)
+      .coerceAtLeast(3)
+    versionName = System.getenv("VERSION_NAME_OVERRIDE") ?: tagParts.joinToString(".")
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -30,13 +43,15 @@ android {
       // KEY_ALIAS, KEY_PASSWORD) — see .github/workflows/release-apk.yml and
       // docs/RELEASE_SIGNING_SETUP.md. The stable-signature guarantee comes from CI
       // reusing the SAME secret-backed keystore in every run, not from a tracked binary
-      // in git. Values below are configuration placeholders ONLY; hard validation for
-      // real release packaging happens in gradle.taskGraph.whenReady (fail loudly).
+      // in git. There is deliberately NO hardcoded fallback here (not even "android"):
+      // an unset env var stays empty, and the release packaging hard gate below in
+      // gradle.taskGraph.whenReady fails the build loudly. The empty strings never get
+      // consumed by debug/test builds (they use debugConfig).
       val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/release.keystore"
       storeFile = file(keystorePath)
-      storePassword = System.getenv("STORE_PASSWORD") ?: "android"
-      keyAlias = System.getenv("KEY_ALIAS") ?: "release"
-      keyPassword = System.getenv("KEY_PASSWORD") ?: "android"
+      storePassword = System.getenv("STORE_PASSWORD") ?: ""
+      keyAlias = System.getenv("KEY_ALIAS") ?: ""
+      keyPassword = System.getenv("KEY_PASSWORD") ?: ""
     }
     create("debugConfig") {
       storeFile = file("${rootDir}/debug.keystore")

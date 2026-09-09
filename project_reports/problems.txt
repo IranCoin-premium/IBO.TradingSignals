@@ -40,8 +40,8 @@ P0 — CRITICAL SECURITY VULNERABILITIES
 
 4. RELEASE KEYSTORE CREDENTIALS HARDCODED AND COMMITTED
    - File: app/build.gradle.kts
-     storePassword = System.getenv("STORE_PASSWORD") ?: "IboRelease2026!Key"
-     keyPassword   = System.getenv("KEY_PASSWORD")   ?: "IboRelease2026!Key"
+     storePassword = System.getenv("STORE_PASSWORD") ?: "***REDACTED***"
+     keyPassword   = System.getenv("KEY_PASSWORD")   ?: "***REDACTED***"
    - Comment confirms the keystore file itself is committed to the repo.
    ACTION: Remove the hardcoded fallback strings entirely. Fail the build if the env vars
    are missing (do not silently fall back to a plaintext default). Rotate the signing key

@@ -11,7 +11,7 @@ elsewhere. Specifically:
   keystore (committed) so every build shares ONE signature", meaning you kept the
   intentionally-committed keystore instead of removing it.
 - .github/workflows/release-apk.yml still contains, in plaintext, in the repo:
-    keytool -list -v -keystore "$GITHUB_WORKSPACE/release.keystore" -alias upload -storepass "IboRelease2026!Key"
+    keytool -list -v -keystore "$GITHUB_WORKSPACE/release.keystore" -alias upload -storepass "***REDACTED***"
   This is the SAME password from two directives ago. It was never rotated. It was never
   removed from plaintext. It was only moved out of build.gradle.kts into a workflow file,
   which does not fix anything — it is the identical vulnerability in a different file.
@@ -30,7 +30,7 @@ REQUIRED CHANGES — NOTHING ELSE
 
 1. FIND AND REMOVE EVERY PLAINTEXT OCCURRENCE OF THE OLD PASSWORD
    Run this yourself before responding:
-     grep -rn "IboRelease2026" .
+     grep -rn "***REDACTED***" .
    Every single match must be deleted or replaced — no exceptions, including inside YAML
    workflow files, shell scripts, and markdown docs. There must be ZERO occurrences of
    any hardcoded keystore/key password anywhere in the repository, in any file type,
@@ -73,7 +73,7 @@ VERIFICATION CHECKLIST — ANSWER WITH ACTUAL COMMAND OUTPUT, NOT CLAIMS
 ===================================================================
 Run and paste the real output of each of these in your response:
 
-  grep -rn "IboRelease2026" .          # must return nothing
+  grep -rn "***REDACTED***" .          # must return nothing
   grep -rn "storepass \"" .github      # must return nothing (no inline plaintext password)
   find . -iname "release.keystore"     # must return nothing
   grep -n "committed" app/build.gradle.kts   # must return nothing
