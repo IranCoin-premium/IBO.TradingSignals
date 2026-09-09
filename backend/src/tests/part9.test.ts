@@ -76,13 +76,13 @@ describe('Part 09 — Security, Permissions, Policy Engine & Trust Governance', 
 
   describe('Work Package 9.10: Secret Redaction & Leak Prevention', () => {
     it('should detect and redact API keys, JWT tokens, and secrets from logs and outputs', () => {
-      const sampleLog = 'Worker executed with API_KEY="AIzaSyA1234567890123456789012345678901" and bearer="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0"';
+      const sampleLog = 'Worker executed with API_KEY="FAKE_TEST_KEY_REDACTED_XYZ123" and bearer="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0"';
       
       const hasLeak = ZeroTrustPolicyEngine.detectSecretLeak(sampleLog);
       expect(hasLeak).toBe(true);
 
       const redacted = ZeroTrustPolicyEngine.redactSecrets(sampleLog);
-      expect(redacted).not.toContain('AIzaSyA1234567890123456789012345678901');
+      expect(redacted).not.toContain('FAKE_TEST_KEY_REDACTED_XYZ123');
       expect(redacted).toContain('[REDACTED_SECRET]');
     });
   });

@@ -60,7 +60,7 @@ jobs:
           cp app/build/outputs/apk/debug/*.apk dist/IBO-TradingSignals-${GITHUB_REF_NAME#v}-debug.apk
           cd dist
           sha256sum *.apk > SHA256SUMS.txt
-          keytool -list -v -keystore "$GITHUB_WORKSPACE/release.keystore" -alias upload -storepass "IboRelease2026!Key" | grep -E 'SHA256:' | head -1 > SIGNING_FINGERPRINT.txt || true
+          keytool -list -v -keystore "$GITHUB_WORKSPACE/release.keystore" -alias ${{ secrets.KEY_ALIAS }} -storepass ${{ secrets.STORE_PASSWORD }} | grep -E 'SHA256:' | head -1 > SIGNING_FINGERPRINT.txt || true
 
       - name: Create GitHub Release with installable APKs
         if: success() && (startsWith(github.ref, 'refs/tags/v') || github.event.inputs.release == 'true')

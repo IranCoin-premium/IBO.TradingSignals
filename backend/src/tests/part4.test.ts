@@ -17,7 +17,7 @@ describe('Part 04 — Agent Control Center, Observability, Chief Agent & Multi-V
         password: 'SuperSecretPassword123!',
         token: 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.dummyPayload.signaturePart',
         nested: {
-          apiKey: 'AIzaSyDummyKey_1234567890abcdef',
+          apiKey: 'FAKE_DUMMY_KEY_REDACTED_12345',
           note: 'Public log message'
         }
       };

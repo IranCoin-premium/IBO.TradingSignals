@@ -53,8 +53,7 @@ describe('Part 13 — End-to-End Integration, Contracts, Event Flows & Reconcili
         tenantId: 'tenant-default',
         schemaVersion: '1.0.0',
         payload: {
-          query: 'fetch_data',
-          token: 'AIzaSyFakeSecretToken123456789012345678'
+          query: 'fetch_data secret:FAKE_TEST_SECRET_12345678'
         },
         receivedAt: new Date().toISOString()
       });

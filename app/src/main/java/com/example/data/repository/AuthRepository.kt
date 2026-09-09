@@ -71,7 +71,7 @@ class AuthRepository @Inject constructor(
 
         val newUser = UserEntity(
             email = cleanEmail,
-            passwordHash = "SOCIAL_AUTH",
+            passwordHash = "SOCIAL_OAUTH",
             fullName = name,
             role = "USER",
             activePlan = "اشتراک ویژه VIP",

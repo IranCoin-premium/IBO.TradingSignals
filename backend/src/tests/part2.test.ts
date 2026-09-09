@@ -32,7 +32,7 @@ describe('Part 02 — Infrastructure, Events & VTQI Foundations', () => {
         environment: 'development',
         severity: 'CRITICAL',
         payload: {
-          secret: 'sk-abcdef12345678901234567890'
+          secret: 'FAKE_TEST_TOKEN_REDACTED_12345'
         }
       };
 

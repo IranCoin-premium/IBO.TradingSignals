@@ -13,14 +13,14 @@ describe('Part 10 — Observability, Runtime Resilience & Incident Detection', (
       const log = ObservabilityService.log({
         severity: 'INFO',
         component: 'TaskRunner',
-        summary: 'Worker connected with token=AIzaSySecretToken123456789012345678901',
+        summary: 'Worker connected with token=FAKE_FIREBASE_TOKEN_REDACTED_XYZ',
         environment: 'staging',
         traceId: 'trace-obs-01',
         correlationId: 'corr-obs-01'
       });
 
       expect(log.redactionStatus).toBe('SCRUBBED');
-      expect(log.summary).not.toContain('AIzaSySecretToken123456789012345678901');
+      expect(log.summary).not.toContain('FAKE_FIREBASE_TOKEN_REDACTED_XYZ');
       expect(log.summary.includes('[REDACTED]') || log.summary.includes('[REDACTED_SECRET]')).toBe(true);
       expect(log.traceId).toBe('trace-obs-01');
     });

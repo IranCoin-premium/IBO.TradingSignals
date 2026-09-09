@@ -64,13 +64,13 @@ describe('Part 06 — AI Knowledge, RAG, Memory, Skills, MCP Governance & Resear
         sensitivity: 'INTERNAL',
         allowedRoles: ['DEVOPS', 'ADMIN'],
         summary: 'Runbook with credential handling',
-        content: 'Use token FAKE_test_token_redacted_12345 to connect',
-        evidence: ['Connecting via FAKE_test_evidence_redacted_67890'],
+        content: 'Use token=FAKE_TEST_SECRET_12345678 to connect',
+        evidence: ['Connecting via secret:FAKE_EVIDENCE_87654321'],
         tags: ['deploy', 'runbook']
       });
 
       expect(ingestion.success).toBe(true);
-      expect(ingestion.item?.content).not.toContain('FAKE_test_token_redacted_12345');
+      expect(ingestion.item?.content).not.toContain('FAKE_TEST_SECRET_12345678');
       expect(ingestion.item?.content).toContain('[REDACTED_SECRET]');
       expect(ingestion.item?.evidence[0]).toContain('[REDACTED_SECRET]');
     });
