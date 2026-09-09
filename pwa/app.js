@@ -1,6 +1,7 @@
 /* ============================================================
    IBO Trading Signals PWA — Main Application Logic
    Synced with Android app data models & navigation
+   Version: 1.0.0 — PWA Initial Release
    ============================================================ */
 
 // --- Service Worker ---
