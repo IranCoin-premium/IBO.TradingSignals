@@ -1,280 +1,206 @@
 /* ============================================================
-   IBO Trading Signals PWA — Main Application Logic
-   Synced with Android app data models & navigation
-   Version: 1.0.0 — PWA Initial Release
+   IBO PWA — Exact data from Android TradingViewModel.kt
    ============================================================ */
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{})}
 
-// --- Service Worker ---
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js').catch(() => {});
-}
+let curTab=0,curCat='ALL',curDir='ALL',favMode=false;
 
-// --- State ---
-let currentTab = 'home';
-let currentCategory = 'ALL';
-let currentDirection = 'ALL';
-let riskAccepted = localStorage.getItem('ibo_risk_accepted') === 'true';
-
-// --- Mock Data (mirrors Android SignalEntity) ---
-const SIGNALS = [
-  { id: 1, asset: 'EUR/USD', category: 'FOREX', direction: 'CALL', strikePrice: '1.0842', currentPrice: '1.0845', expiry: '3m', payoutRate: '92%', marketRegime: 'Trend Bullish', confidenceScore: 87, riskScore: 'کم ریسک', vetoStatus: 'تایید شده', rationale: 'حمایت قوی در سطح 1.0840 با واگرایی مثبت RSI', recommendedBrokers: 'Pocket Option, Quotex', status: 'ACTIVE' },
-  { id: 2, asset: 'GBP/JPY', category: 'FOREX', direction: 'PUT', strikePrice: '191.450', currentPrice: '191.480', expiry: '5m', payoutRate: '88%', marketRegime: 'Range Compression', confidenceScore: 72, riskScore: 'متوسط', vetoStatus: 'تایید شده', rationale: 'مقاومت در 191.500 با الگوی سقف دوقلو', recommendedBrokers: 'Pocket Option', status: 'ACTIVE' },
-  { id: 3, asset: 'BTC/USD', category: 'CRYPTO', direction: 'CALL', strikePrice: '67,240', currentPrice: '67,180', expiry: '15m', payoutRate: '85%', marketRegime: 'Breakout', confidenceScore: 91, riskScore: 'کم ریسک', vetoStatus: 'تایید شده', rationale: 'شکست مقاومت 67,000 با حجم بالا', recommendedBrokers: 'Pocket Option, Quotex, IQ Option', status: 'ACTIVE' },
-  { id: 4, asset: 'XAU/USD', category: 'COMMODITIES', direction: 'CALL', strikePrice: '2,648.50', currentPrice: '2,647.20', expiry: '3m', payoutRate: '90%', marketRegime: 'Trend Bullish', confidenceScore: 83, riskScore: 'کم ریسک', vetoStatus: 'تایید شده', rationale: 'افزایش تقاضا در بازار طلا', recommendedBrokers: 'Quotex, Pocket Option', status: 'ACTIVE' },
-  { id: 5, asset: 'USD/TRY', category: 'OTC', direction: 'PUT', strikePrice: '34.280', currentPrice: '34.250', expiry: '1m', payoutRate: '94%', marketRegime: 'Range Compression', confidenceScore: 65, riskScore: 'بالا', vetoStatus: 'تایید شده', rationale: 'نوسانات شدید در بازار OTC', recommendedBrokers: 'Pocket Option', status: 'ACTIVE' },
-  { id: 6, asset: 'ETH/USD', category: 'CRYPTO', direction: 'NO_TRADE', strikePrice: '3,520', currentPrice: '3,518', expiry: '5m', payoutRate: '82%', marketRegime: 'Uncertain', confidenceScore: 35, riskScore: 'بالا', vetoStatus: 'رد شده با Veto', rationale: 'عدم قطعیت بالا در بازار', recommendedBrokers: '-', status: 'NO_TRADE' },
-  { id: 7, asset: 'EUR/GBP', category: 'FOREX', direction: 'CALL', strikePrice: '0.8562', currentPrice: '0.8558', expiry: '3m', payoutRate: '91%', marketRegime: 'Trend Bullish', confidenceScore: 78, riskScore: 'متوسط', vetoStatus: 'تایید شده', rationale: 'ترند صعودی کوتاه‌مدت', recommendedBrokers: 'Pocket Option, Quotex', status: 'WON' },
-  { id: 8, asset: 'AUD/USD', category: 'FOREX', direction: 'PUT', strikePrice: '0.6534', currentPrice: '0.6538', expiry: '5m', payoutRate: '89%', marketRegime: 'Bearish', confidenceScore: 74, riskScore: 'متوسط', vetoStatus: 'تایید شده', rationale: 'مقاومت در سطح کلیدی', recommendedBrokers: 'Quotex', status: 'LOST' },
-  { id: 9, asset: 'SOL/USD', category: 'CRYPTO', direction: 'CALL', strikePrice: '172.40', currentPrice: '172.10', expiry: '15m', payoutRate: '86%', marketRegime: 'Breakout', confidenceScore: 88, riskScore: 'کم ریسک', vetoStatus: 'تایید شده', rationale: 'شکست مقاومت با حجم تاییدی', recommendedBrokers: 'Pocket Option, IQ Option', status: 'ACTIVE' },
-  { id: 10, asset: 'NZD/USD', category: 'OTC', direction: 'CALL', strikePrice: '0.5912', currentPrice: '0.5908', expiry: '1m', payoutRate: '93%', marketRegime: 'Range Compression', confidenceScore: 68, riskScore: 'متوسط', vetoStatus: 'تایید شده', rationale: 'بازگشت از حمایت', recommendedBrokers: 'Pocket Option', status: 'ACTIVE' },
-  { id: 11, asset: 'USD/CAD', category: 'FOREX', direction: 'PUT', strikePrice: '1.3645', currentPrice: '1.3648', expiry: '3m', payoutRate: '90%', marketRegime: 'Bearish', confidenceScore: 76, riskScore: 'متوسط', vetoStatus: 'تایید شده', rationale: 'مقاومت در باند بالایی بولینگر', recommendedBrokers: 'Quotex, Pocket Option', status: 'ACTIVE' },
-  { id: 12, asset: 'CRUDE/OIL', category: 'COMMODITIES', direction: 'CALL', strikePrice: '78.40', currentPrice: '78.25', expiry: '5m', payoutRate: '87%', marketRegime: 'Trend Bullish', confidenceScore: 81, riskScore: 'کم ریسک', vetoStatus: 'تایید شده', rationale: 'افزایش تقاضای فصلی', recommendedBrokers: 'Pocket Option', status: 'ACTIVE' },
+// ===== EXACT DATA FROM ANDROID ViewModel.kt =====
+const SIGNALS=[
+  {id:1,asset:"EUR/USD (OTC)",category:"OTC",direction:"CALL",strikePrice:"1.08450",currentPrice:"1.08458",expiry:"1m",payoutRate:"92%",marketRegime:"Trend Bullish",confidenceScore:94,riskScore:"کم ریسک (Low)",vetoStatus:"تایید شده",rationale:"شکست مقاومت با حجم بالا در کندل ۱ دقیقه‌ای و تایید اندیکاتور RSI بالای ۵۰",recommendedBrokers:"Pocket Option, Quotex",status:"ACTIVE",isFavorite:true,timestamp:Date.now()},
+  {id:2,asset:"GBP/USD",category:"FOREX",direction:"PUT",strikePrice:"1.26320",currentPrice:"1.26312",expiry:"3m",payoutRate:"89%",marketRegime:"Breakout",confidenceScore:91,riskScore:"متوسط (Medium)",vetoStatus:"تایید شده",rationale:"برخورد به مقاومت داینامیک و تشکیل الگوی کندل استیک چکش معکوس",recommendedBrokers:"Pocket Option, IQ Option",status:"ACTIVE",isFavorite:false,timestamp:Date.now()-60000},
+  {id:3,asset:"BTC/USDT",category:"CRYPTO",direction:"CALL",strikePrice:"68,450.00",currentPrice:"68,485.50",expiry:"5m",payoutRate:"90%",marketRegime:"Breakout",confidenceScore:88,riskScore:"متوسط (Medium)",vetoStatus:"تایید شده",rationale:"حمایت قوی در فیبوناچی ۶۱.۸٪ و افزایش مومنتوم خریداران باینری",recommendedBrokers:"Pocket Option, Quotex",status:"ACTIVE",isFavorite:true,timestamp:Date.now()-120000},
+  {id:4,asset:"USD/JPY (OTC)",category:"OTC",direction:"CALL",strikePrice:"154.210",currentPrice:"154.260",expiry:"1m",payoutRate:"95%",marketRegime:"Trend Bullish",confidenceScore:96,riskScore:"کم ریسک (Low)",vetoStatus:"تایید شده",rationale:"کراس صعودی مووینگ اوریج ۲۰ و ۵۰ در تایم‌فریم ۱ دقیقه پاکت‌آپشن",recommendedBrokers:"Pocket Option",status:"ACTIVE",isFavorite:false,timestamp:Date.now()-180000},
+  {id:5,asset:"AUD/CAD",category:"FOREX",direction:"PUT",strikePrice:"0.89120",currentPrice:"0.89110",expiry:"5m",payoutRate:"87%",marketRegime:"Range Compression",confidenceScore:86,riskScore:"کم ریسک (Low)",vetoStatus:"تایید شده",rationale:"اشباع خرید در استوکاستیک و بازگشت از باند بالایی بولینگر باند",recommendedBrokers:"Quotex, Alpari Fixed",status:"ACTIVE",isFavorite:false,timestamp:Date.now()-240000},
+  {id:6,asset:"EUR/GBP",category:"FOREX",direction:"CALL",strikePrice:"0.85400",currentPrice:"0.85435",expiry:"5m",payoutRate:"90%",marketRegime:"Trend Bullish",confidenceScore:93,riskScore:"کم ریسک (Low)",vetoStatus:"تایید شده",rationale:"سیگنال موفق مطابق استراتژی پولبک به میانگین متحرک",recommendedBrokers:"Pocket Option",status:"WON",isFavorite:false,timestamp:Date.now()-3600000},
+  {id:7,asset:"USD/CHF",category:"FOREX",direction:"PUT",strikePrice:"0.90210",currentPrice:"0.90175",expiry:"3m",payoutRate:"88%",marketRegime:"Breakout",confidenceScore:95,riskScore:"کم ریسک (Low)",vetoStatus:"تایید شده",rationale:"شکست خط روند نزولی و تثبیت در زیر سطح پیوت",recommendedBrokers:"Quotex",status:"WON",isFavorite:false,timestamp:Date.now()-7200000},
+  {id:8,asset:"NZD/USD",category:"FOREX",direction:"CALL",strikePrice:"0.61200",currentPrice:"0.61180",expiry:"5m",payoutRate:"85%",marketRegime:"Range Compression",confidenceScore:78,riskScore:"بالا (High)",vetoStatus:"رد شده با Veto",rationale:"نوسان شدید خبری خارج از برنامه معاملاتی",recommendedBrokers:"Pocket Option",status:"LOST",isFavorite:false,timestamp:Date.now()-10800000},
+  {id:9,asset:"Gold (XAU/USD)",category:"COMMODITIES",direction:"CALL",strikePrice:"2340.50",currentPrice:"2344.80",expiry:"5m",payoutRate:"92%",marketRegime:"Trend Bullish",confidenceScore:95,riskScore:"کم ریسک (Low)",vetoStatus:"تایید شده",rationale:"واکنش به حمایت طلایی و پرتاب قیمت به سمت مقاومت بعدی",recommendedBrokers:"Pocket Option, Quotex",status:"WON",isFavorite:false,timestamp:Date.now()-14400000},
+  {id:10,asset:"ETH/USDT",category:"CRYPTO",direction:"CALL",strikePrice:"3,480.00",currentPrice:"3,495.20",expiry:"3m",payoutRate:"91%",marketRegime:"Breakout",confidenceScore:90,riskScore:"متوسط (Medium)",vetoStatus:"تایید شده",rationale:"افزایش حجم معاملات اتریوم همگام با کندل‌های صعودی قدرتمند",recommendedBrokers:"Pocket Option",status:"WON",isFavorite:false,timestamp:Date.now()-18000000}
 ];
 
-const BROKERS = [
-  { name: 'Pocket Option', online: true },
-  { name: 'Quotex', online: true },
-  { name: 'IQ Option', online: false },
+const BROKERS=[
+  {name:"Pocket Option",payout:"۹۲٪",speed:"سریع",min:"$۵۰",status:"پیشنهادی",online:true,reg:"ثبت‌شده MISA (کومورو)"},
+  {name:"Quotex",payout:"۸۹٪",speed:"عالی",min:"$۱۰",status:"محبوب",online:true,reg:"آفشور (SVG)"},
+  {name:"IQ Option",payout:"۹۴٪",speed:"فوق‌العاده",min:"$۱۰",status:"حرفه‌ای",online:false,reg:"مجوز CySEC (سابق)"},
+  {name:"Alpari Fixed",payout:"۸۵٪",speed:"متوسط",min:"$۱",status:"اقتصادی",online:false,reg:"آفشور"}
 ];
 
-const MARKET_DATA = [
-  { symbol: 'EUR/USD', price: '1.0845', change: '+0.12%', up: true },
-  { symbol: 'GBP/JPY', price: '191.48', change: '-0.08%', up: false },
-  { symbol: 'BTC/USD', price: '67,180', change: '+2.34%', up: true },
-  { symbol: 'XAU/USD', price: '2,647', change: '+0.45%', up: true },
-  { symbol: 'ETH/USD', price: '3,518', change: '-0.22%', up: false },
-  { symbol: 'SOL/USD', price: '172.10', change: '+1.88%', up: true },
-  { symbol: 'USD/TRY', price: '34.25', change: '+0.31%', up: true },
-  { symbol: 'AUD/USD', price: '0.6538', change: '-0.15%', up: false },
+const PLANS=[
+  {id:1,title:"پلن آزمایشی ۷ روزه",days:"۷ روز",price:"۲۹۰,۰۰۰ تومان",usdt:"4.5 USDT",discount:0,popular:false,badge:"شروع سریع",features:["دسترسی به سیگنال‌های کریپتو و فارکس","پشتیبانی آنلاین تلگرام","تست استراتژی‌های باینری","کانال VIP تلگرام"]},
+  {id:2,title:"پلن برنزی ۳۰ روزه",days:"۳۰ روز",price:"۹۵۰,۰۰۰ تومان",usdt:"15 USDT",discount:15,popular:false,badge:"استاندارد",features:["سیگنال‌های VIP باینری با وین‌ریت +۸۵٪","سیگنال‌های جفت ارزهای OTC و فارکس","دسترسی کامل به ژورنال ترید","پشتیبانی اختصاصی"]},
+  {id:3,title:"پلن نقره‌ای ۹۰ روزه",days:"۹۰ روز",price:"۲,۵۵۰,۰۰۰ تومان",usdt:"40 USDT",discount:25,popular:false,badge:"به‌صرفه",features:["دسترسی همزمان به تمام سیگنال‌های VIP","تحلیل فاندامنتال و اخبار لحظه‌ای","ربات هشدار صوتی و تلگرام","مدیریت ریسک هوشمند مارتینگل"]},
+  {id:4,title:"پلن طلایی ۱۸۰ روزه",days:"۱۸۰ روز",price:"۴,۸۰۰,۰۰۰ تومان",usdt:"75 USDT",discount:35,popular:true,badge:"محبوب‌ترین (VIP)",features:["تمامی امکانات پلن نقره‌ای بدون محدودیت","سیگنال‌های اسکالپ ۱ دقیقه‌ای پرسرعت","وبینارهای هفتگی تحلیل لایو","کانال ویژه تریدرهای حرفه‌ای","مشاوره اختصاصی ادمین"]},
+  {id:5,title:"پلن الماس ۳۶۵ روزه",days:"۳۶۵ روز",price:"۸,۹۰۰,۰۰۰ تومان",usdt:"140 USDT",discount:50,popular:false,badge:"فوق ویژه (Diamond)",features:["دسترسی ۱ ساله به کلیه خدمات پریمیوم","استراتژی‌های انحصاری پاکت‌آپشن و کوتکس","ضمانت بازگشت وجه در صورت نارضایتی","پشتیبانی ۲۴/۷ تلفنی و تلگرامی"]}
 ];
 
-// --- Init ---
-document.addEventListener('DOMContentLoaded', () => {
-  setTimeout(() => {
-    document.getElementById('splash').style.display = 'none';
-    document.getElementById('main-app').classList.remove('hidden');
-  }, 2000);
+const MARKET=[
+  {s:"EUR/USD",p:"1.0845",c:"+0.12%",u:true},{s:"GBP/USD",p:"1.2631",c:"-0.05%",u:false},
+  {s:"BTC/USDT",p:"68,485",c:"+1.82%",u:true},{s:"XAU/USD",p:"2,344",c:"+0.35%",u:true},
+  {s:"ETH/USDT",p:"3,495",c:"+1.24%",u:true},{s:"USD/JPY",p:"154.26",c:"+0.18%",u:true}
+];
 
-  if (riskAccepted) {
-    document.getElementById('risk-banner').classList.add('hidden');
-  }
-
-  renderMarquee();
-  renderSignals();
-  renderHomeSignals();
-  calcRisk();
-  drawChart();
+// ===== INIT =====
+document.addEventListener('DOMContentLoaded',()=>{
+  setTimeout(()=>{document.getElementById('splash').style.display='none';document.getElementById('main-app').classList.remove('hidden')},2000);
+  renderMarquee();renderAll();calcRisk();drawChart();
 });
 
-// --- Navigation ---
-function switchTab(tab) {
-  currentTab = tab;
-  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById('tab-' + tab).classList.add('active');
-  document.querySelector(`.nav-item[data-tab="${tab}"]`).classList.add('active');
-  if (tab === 'signals') renderSignals();
-  if (tab === 'performance') renderHistory();
+// ===== NAV =====
+function switchTab(i){
+  curTab=i;favMode=false;
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.sub-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+i).classList.add('active');
+  document.querySelector(`.sub-tab[data-tab="${i}"]`).classList.add('active');
+  const titles=["داشبورد معاملات هوشمند","آپشن‌های معاملاتی","عملکرد من","ابزارهای تحلیلی"];
+  document.getElementById('header-title').textContent=titles[i];
+  document.getElementById('header-right-btn').textContent=i===1?'⭐':'🔔';
+  if(i===1)renderSignals();
+  if(i===2)renderHistory();
+  if(i===3)renderPlans();
+}
+function headerRightAction(){
+  if(curTab===1){favMode=!favMode;renderSignals()}
+  else switchTab(3);
 }
 
-// --- Risk Banner ---
-function acceptRisk() {
-  riskAccepted = true;
-  localStorage.setItem('ibo_risk_accepted', 'true');
-  document.getElementById('risk-banner').classList.add('hidden');
+// ===== MARQUEE =====
+function renderMarquee(){
+  const el=document.getElementById('marquee');
+  const items=[...MARKET,...MARKET].map(m=>`<span class="${m.u?'up':'dn'}">${m.s} ${m.p} ${m.c}</span>`).join('');
+  el.innerHTML=items;
 }
 
-// --- Marquee ---
-function renderMarquee() {
-  const el = document.getElementById('market-marquee');
-  const items = [...MARKET_DATA, ...MARKET_DATA].map(m =>
-    `<span class="marquee-item ${m.up ? 'up' : 'down'}">${m.symbol} ${m.price} ${m.change}</span>`
-  ).join('');
-  el.innerHTML = items;
-}
-
-// --- Signals ---
-function getFilteredSignals() {
-  return SIGNALS.filter(s => {
-    if (currentCategory !== 'ALL' && s.category !== currentCategory) return false;
-    if (currentDirection !== 'ALL' && s.direction !== currentDirection) return false;
+// ===== SIGNALS =====
+function getFiltered(){
+  return SIGNALS.filter(s=>{
+    if(curCat!=='ALL'&&s.category!==curCat)return false;
+    if(curDir!=='ALL'&&s.direction!==curDir)return false;
+    if(favMode&&!s.isFavorite)return false;
     return true;
   });
 }
-
-function renderSignals() {
-  const list = document.getElementById('signals-list');
-  list.innerHTML = getFilteredSignals().map(s => signalCardHTML(s)).join('');
-}
-
-function renderHomeSignals() {
-  const el = document.getElementById('home-signals');
-  el.innerHTML = SIGNALS.slice(0, 3).map(s => signalCardHTML(s)).join('');
-}
-
-function signalCardHTML(s) {
-  const dirClass = s.direction === 'CALL' ? 'call' : s.direction === 'PUT' ? 'put' : 'no-trade';
-  const dirLabel = s.direction === 'CALL' ? '📈 CALL' : s.direction === 'PUT' ? '📉 PUT' : '⏸ NO TRADE';
-  const timeAgo = getTimeAgo(s.id);
-  const statusColor = s.status === 'WON' ? 'var(--green)' : s.status === 'LOST' ? 'var(--red)' : s.status === 'NO_TRADE' ? 'var(--text-muted)' : 'var(--cyan)';
-  const progressWidth = s.confidenceScore;
-  const progressColor = s.confidenceScore > 75 ? 'var(--green)' : s.confidenceScore > 50 ? 'var(--amber)' : 'var(--red)';
-  return `
-    <div class="signal-card" onclick="openSignalDetail(${s.id})">
-      <div class="signal-header">
-        <span class="signal-asset">${s.asset}</span>
-        <span class="signal-badge ${dirClass}">${dirLabel}</span>
-      </div>
-      <div class="signal-meta">
-        <span class="signal-meta-item">Strike: <strong>${s.strikePrice}</strong></span>
-        <span class="signal-meta-item">Expiry: <strong>${s.expiry}</strong></span>
-        <span class="signal-meta-item">Payout: <strong>${s.payoutRate}</strong></span>
-      </div>
-      <div class="signal-progress">
-        <div class="signal-progress-bar">
-          <div class="signal-progress-fill" style="width:${progressWidth}%;background:${progressColor}"></div>
+function signalHTML(s,i){
+  const g=i%5;
+  const isCall=s.direction==='CALL';
+  const isPut=s.direction==='PUT';
+  const dirCls=isCall?'call':isPut?'put':'hold';
+  const dirLbl=isCall?'CALL':isPut?'PUT':'HOLD';
+  const sCls=s.status==='WON'?'s-status-won':s.status==='LOST'?'s-status-lost':s.status==='ACTIVE'?'s-status-active':'s-status-notrade';
+  const sLbl=s.status==='WON'?'WIN':s.status==='LOST'?'LOSS':s.status==='ACTIVE'?'PENDING':s.status;
+  return `<div class="s-card g${g}" onclick="openDetail(${s.id})">
+    <div class="s-top">
+      <button class="s-star" onclick="event.stopPropagation();toggleFav(${s.id})">${s.isFavorite?'⭐':'☆'}</button>
+      <div class="s-info">
+        <div class="s-asset">${s.asset}</div>
+        <div class="s-badges">
+          <span class="s-badge s-cat">${s.category}</span>
+          <span class="s-badge ${sCls}">${sLbl}</span>
         </div>
+        <div class="s-price">قیمت: ${s.currentPrice}</div>
       </div>
-      <div class="signal-footer">
-        <span class="signal-time">${timeAgo} — ${s.status === 'WON' ? '✅ برد' : s.status === 'LOST' ? '❌ باخت' : s.status}</span>
-        <span class="signal-action" style="color:${statusColor}">Confidence: ${s.confidenceScore}%</span>
+      <div class="s-right">
+        <div class="s-dir-box ${dirCls}">${dirLbl} ${s.expiry}</div>
+        <div class="s-conf" style="color:${isCall?'var(--cyan)':isPut?'var(--peach)':'var(--amber)'}">${s.confidenceScore}%</div>
       </div>
-    </div>`;
+    </div>
+  </div>`;
+}
+function renderSignals(){
+  const list=document.getElementById('signals-list');
+  list.innerHTML=getFiltered().map((s,i)=>signalHTML(s,i)).join('');
+}
+function renderHomeSignals(){
+  document.getElementById('hot-signal').innerHTML=signalHTML(SIGNALS.reduce((a,b)=>a.confidenceScore>b.confidenceScore?a:b),0);
+  document.getElementById('home-signals').innerHTML=SIGNALS.slice(0,4).map((s,i)=>signalHTML(s,i)).join('');
+}
+function renderAll(){renderHomeSignals()}
+
+// ===== FILTER =====
+function filterCat(c,el){
+  curCat=c;document.querySelectorAll('.filter-row:first-of-type .filter-chip').forEach(e=>e.classList.remove('active'));el.classList.add('active');renderSignals();
+}
+function filterDir(d,el){
+  curDir=d;document.querySelectorAll('.filter-row:last-of-type .filter-chip').forEach(e=>e.classList.remove('active'));el.classList.add('active');renderSignals();
+}
+function toggleFav(id){
+  const s=SIGNALS.find(x=>x.id===id);if(s)s.isFavorite=!s.isFavorite;
+  if(curTab===1)renderSignals();else renderHomeSignals();
 }
 
-function getTimeAgo(id) {
-  const mins = [2, 5, 8, 12, 18, 25, 35, 48, 60, 75, 90, 120];
-  const m = mins[id % mins.length];
-  return m < 60 ? `${m} دقیقه پیش` : `${Math.floor(m / 60)} ساعت پیش`;
-}
-
-// --- Filter ---
-function filterCategory(cat) {
-  currentCategory = cat;
-  document.querySelectorAll('.filter-bar:first-of-type .filter-chip').forEach(c => {
-    c.classList.toggle('active', c.dataset.cat === cat);
-  });
-  renderSignals();
-}
-
-function filterDirection(dir) {
-  currentDirection = dir;
-  document.querySelectorAll('.filter-bar.secondary .filter-chip').forEach(c => {
-    c.classList.toggle('active', c.dataset.dir === dir);
-  });
-  renderSignals();
-}
-
-// --- Signal Detail ---
-function openSignalDetail(id) {
-  const s = SIGNALS.find(x => x.id === id);
-  if (!s) return;
-  document.getElementById('modal-asset').textContent = s.asset;
-  document.getElementById('modal-body').innerHTML = `
-    <div style="margin-bottom:12px"><strong>جهت:</strong> ${s.direction}</div>
-    <div style="margin-bottom:12px"><strong>Strike:</strong> ${s.strikePrice}</div>
-    <div style="margin-bottom:12px"><strong>قیمت فعلی:</strong> ${s.currentPrice}</div>
-    <div style="margin-bottom:12px"><strong>انقضا:</strong> ${s.expiry}</div>
-    <div style="margin-bottom:12px"><strong>نرخ پرداخت:</strong> ${s.payoutRate}</div>
-    <div style="margin-bottom:12px"><strong>رژیم بازار:</strong> ${s.marketRegime}</div>
-    <div style="margin-bottom:12px"><strong>اطمینان:</strong> ${s.confidenceScore}%</div>
-    <div style="margin-bottom:12px"><strong>ریسک:</strong> ${s.riskScore}</div>
-    <div style="margin-bottom:12px"><strong>دلیل:</strong> ${s.rationale}</div>
-    <div style="margin-bottom:12px"><strong>بروکرها:</strong> ${s.recommendedBrokers}</div>
-    <div style="padding:10px;border-radius:12px;background:var(--bg);margin-top:12px;font-size:12px;color:var(--text-secondary)">
-      ⚠️ سیگنال‌ها صرفاً جنبه پیشنهادی دارند و توصیه مالی نیستند.
-    </div>`;
+// ===== DETAIL =====
+function openDetail(id){
+  const s=SIGNALS.find(x=>x.id===id);if(!s)return;
+  document.getElementById('m-asset').textContent=s.asset;
+  document.getElementById('m-body').innerHTML=`
+    <div class="mb-row"><span class="mb-label">جهت:</span> <span class="mb-val">${s.direction}</span></div>
+    <div class="mb-row"><span class="mb-label">Strike:</span> <span class="mb-val">${s.strikePrice}</span></div>
+    <div class="mb-row"><span class="mb-label">قیمت فعلی:</span> <span class="mb-val">${s.currentPrice}</span></div>
+    <div class="mb-row"><span class="mb-label">انقضا:</span> <span class="mb-val">${s.expiry}</span></div>
+    <div class="mb-row"><span class="mb-label">نرخ پرداخت:</span> <span class="mb-val">${s.payoutRate}</span></div>
+    <div class="mb-row"><span class="mb-label">رژیم بازار:</span> <span class="mb-val">${s.marketRegime}</span></div>
+    <div class="mb-row"><span class="mb-label">اطمینان AI:</span> <span class="mb-val">${s.confidenceScore}%</span></div>
+    <div class="mb-row"><span class="mb-label">ریسک:</span> <span class="mb-val">${s.riskScore}</span></div>
+    <div class="mb-row"><span class="mb-label">Veto:</span> <span class="mb-val">${s.vetoStatus}</span></div>
+    <div class="mb-row"><span class="mb-label">تحلیل:</span> <span class="mb-val">${s.rationale}</span></div>
+    <div class="mb-row"><span class="mb-label">بروکرها:</span> <span class="mb-val">${s.recommendedBrokers}</span></div>
+    <div class="modal-risk">⚠️ سیگنال‌ها صرفاً جنبه پیشنهادی دارند و توصیه مالی نیستند. ریسک از دست دادن سرمایه وجود دارد.</div>`;
   document.getElementById('signal-modal').classList.remove('hidden');
 }
 
-function closeSignalModal(e) {
-  if (!e || e.target === document.getElementById('signal-modal')) {
-    document.getElementById('signal-modal').classList.add('hidden');
-  }
+// ===== HISTORY =====
+function renderHistory(){
+  const won=SIGNALS.filter(s=>s.status==='WON').length;
+  const lost=SIGNALS.filter(s=>s.status==='LOST').length;
+  document.getElementById('p-won').textContent=won;
+  document.getElementById('p-lost').textContent=lost;
+  document.getElementById('p-total').textContent=SIGNALS.length;
+  document.getElementById('history-list').innerHTML=SIGNALS.filter(s=>s.status==='WON'||s.status==='LOST').map((s,i)=>signalHTML(s,i)).join('');
 }
 
-// --- Settings ---
-function openSettings() { document.getElementById('settings-modal').classList.remove('hidden'); }
-function closeSettings(e) {
-  if (!e || e.target === document.getElementById('settings-modal')) {
-    document.getElementById('settings-modal').classList.add('hidden');
-  }
+// ===== PLANS =====
+function renderPlans(){
+  document.getElementById('plans-list').innerHTML=PLANS.map(p=>`
+    <div class="plan-card${p.popular?' popular':''}">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="plan-title">${p.title}</div>
+        <span class="plan-badge">${p.badge}</span>
+      </div>
+      <div class="plan-price">${p.price} | ${p.usdt}${p.discount?` (-${p.discount}%)`:''}</div>
+      <div class="plan-features">${p.features.map(f=>'• '+f).join('<br>')}</div>
+    </div>`).join('');
 }
 
-function changeLang(lang) {
-  document.documentElement.lang = lang;
-  document.documentElement.dir = (lang === 'ar' || lang === 'fa') ? 'rtl' : 'ltr';
+// ===== TOOLS =====
+function showRiskCalc(){switchTab(3);document.getElementById('risk-calc').classList.toggle('hidden')}
+function showJournal(){alert('دفتر ترید — به‌زودی')}
+function openSupport(){alert('پشتیبانی ۲۴/۷ — به‌زودی')}
+function openSettings(){document.getElementById('settings-modal').classList.remove('hidden')}
+function closeModal(e,id){if(!e||e.target===document.getElementById(id))document.getElementById(id).classList.add('hidden')}
+
+function calcRisk(){
+  const b=parseFloat(document.getElementById('calc-bal')?.value||1000);
+  const p=parseFloat(document.getElementById('calc-pct')?.value||2);
+  const r=parseFloat(document.getElementById('calc-pay')?.value||92);
+  const amt=(b*p/100).toFixed(2);
+  const profit=(amt*r/100).toFixed(2);
+  const el=document.getElementById('calc-result');
+  if(el)el.innerHTML=`<div>مبلغ هر معامله: <strong>$${amt}</strong></div><div>سود بالقوه: <strong>$${profit}</strong></div><div>ضرر بالقوه: <strong>$${amt}</strong></div>`;
 }
 
-// --- Tools ---
-function openRiskCalculator() {
-  switchTab('tools');
-  document.getElementById('risk-calc').classList.toggle('hidden');
-}
-
-function calcRisk() {
-  const balance = parseFloat(document.getElementById('calc-balance')?.value || 1000);
-  const percent = parseFloat(document.getElementById('calc-percent')?.value || 2);
-  const payout = parseFloat(document.getElementById('calc-payout')?.value || 92);
-  const tradeAmount = (balance * percent / 100).toFixed(2);
-  const profit = (tradeAmount * payout / 100).toFixed(2);
-  const el = document.getElementById('calc-result');
-  if (el) el.innerHTML = `
-    <div>مبلغ هر معامله: <strong>$${tradeAmount}</strong></div>
-    <div>سود بالقوه: <strong>$${profit}</strong></div>
-    <div>ضرر بالocomplete: <strong>$${tradeAmount}</strong></div>`;
-}
-
-function openJournal() { alert('دفتر ترید — به‌زودی'); }
-function openSupport() { alert('پشتیبانی — به‌زودی'); }
-function openSubscriptions() { alert('اشتراک — به‌زودی'); }
-function openMarkets() { alert('بازارها — به‌زودی'); }
-function openTutorial() { alert('آموزش — به‌زودی'); }
-
-// --- Performance Chart ---
-function drawChart() {
-  const canvas = document.getElementById('perf-chart');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const w = canvas.width, h = canvas.height;
-  const data = [5, 8, 6, 9, 7, 10, 8];
-  const labels = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه'];
-  const max = Math.max(...data) + 2;
-  const barW = (w - 60) / data.length;
-
-  ctx.clearRect(0, 0, w, h);
-  ctx.strokeStyle = '#E2E8F0';
-  ctx.lineWidth = 1;
-
-  // Grid lines
-  for (let i = 0; i <= 4; i++) {
-    const y = 20 + (h - 50) * i / 4;
-    ctx.beginPath(); ctx.moveTo(40, y); ctx.lineTo(w - 10, y); ctx.stroke();
-  }
-
-  // Bars
-  data.forEach((v, i) => {
-    const barH = (v / max) * (h - 50);
-    const x = 50 + i * barW;
-    const y = h - 30 - barH;
-    const grad = ctx.createLinearGradient(x, y, x, h - 30);
-    grad.addColorStop(0, '#1CB4C8');
-    grad.addColorStop(1, '#7A6CF0');
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.roundRect(x, y, barW - 12, barH, 6);
-    ctx.fill();
-    // Label
-    ctx.fillStyle = '#64748B';
-    ctx.font = '10px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(labels[i], x + (barW - 12) / 2, h - 12);
+// ===== CHART =====
+function drawChart(){
+  const c=document.getElementById('chart');if(!c)return;
+  const ctx=c.getContext('2d'),w=c.width,h=c.height;
+  const data=[5,8,6,9,7,10,8],labels=['شنبه','یکشنبه','دوشنبه','سه‌شنبه','چهارشنبه','پنجشنبه','جمعه'];
+  const max=Math.max(...data)+2,bw=(w-60)/data.length;
+  ctx.clearRect(0,0,w,h);ctx.strokeStyle='#E2E8F0';ctx.lineWidth=1;
+  for(let i=0;i<=4;i++){const y=20+(h-50)*i/4;ctx.beginPath();ctx.moveTo(40,y);ctx.lineTo(w-10,y);ctx.stroke()}
+  data.forEach((v,i)=>{
+    const bh=(v/max)*(h-50),x=50+i*bw,y=h-30-bh;
+    const g=ctx.createLinearGradient(x,y,x,h-30);g.addColorStop(0,'#1CB4C8');g.addColorStop(1,'#7A6CF0');
+    ctx.fillStyle=g;ctx.beginPath();ctx.roundRect(x,y,bw-12,bh,6);ctx.fill();
+    ctx.fillStyle='#64748B';ctx.font='10px sans-serif';ctx.textAlign='center';ctx.fillText(labels[i],x+(bw-12)/2,h-12);
   });
-}
-
-// --- Render History ---
-function renderHistory() {
-  const el = document.getElementById('history-list');
-  const history = SIGNALS.filter(s => s.status === 'WON' || s.status === 'LOST');
-  el.innerHTML = history.map(s => signalCardHTML(s)).join('');
 }

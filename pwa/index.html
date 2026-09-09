@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#1CB4C8">
+  <meta name="theme-color" content="#F2F4F8">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="description" content="Iran Binary Option - Trading Signals PWA">
@@ -15,255 +15,227 @@
 </head>
 <body>
   <div id="app">
-    <!-- Splash Screen -->
+    <!-- Splash -->
     <div id="splash" class="splash">
       <div class="splash-logo">IBO</div>
-      <div class="splash-title">ایران باینری آپشن</div>
-      <div class="splash-sub">سیگنال‌های معاملاتی</div>
+      <div class="splash-title">IBO Trading AI</div>
+      <div class="splash-sub">سیگنال‌های معاملاتی هوشمند</div>
     </div>
 
-    <!-- Main App -->
+    <!-- Main -->
     <div id="main-app" class="main-app hidden">
-      <!-- Header -->
+      <!-- Header (exact match Android) -->
       <header class="header">
-        <div class="header-inner">
-          <div class="brand">
-            <div class="brand-icon">IBO</div>
-            <div>
-              <div class="brand-name">ایران باینری آپشن</div>
-              <div class="brand-sub">سیگنال‌های معاملاتی</div>
-            </div>
-          </div>
-          <div class="header-actions">
-            <button class="icon-btn" onclick="openSettings()">⚙️</button>
-          </div>
-        </div>
+        <button class="header-btn" onclick="openSettings()">☰</button>
+        <span class="header-title" id="header-title">داشبورد معاملات هوشمند</span>
+        <button class="header-btn" id="header-right-btn" onclick="headerRightAction()">⭐</button>
       </header>
 
-      <!-- Risk Disclosure Banner -->
-      <div id="risk-banner" class="risk-banner">
-        <div class="risk-icon">⚠️</div>
-        <div class="risk-text">
-          <strong>سلب مسئولیت و بیانیه ریسک</strong>
-          <p>معاملات باینری آپشن ریسک بالایی دارد. سیگنال‌ها صرفاً جنبه پیشنهادی دارند.</p>
-        </div>
-        <button class="risk-accept" onclick="acceptRisk()">قبول</button>
+      <!-- Sub-tabs (exact match Android) -->
+      <div class="sub-tabs">
+        <button class="sub-tab active" data-tab="0" onclick="switchTab(0)">داشبورد</button>
+        <button class="sub-tab" data-tab="1" onclick="switchTab(1)">سیگنال‌ها</button>
+        <button class="sub-tab" data-tab="2" onclick="switchTab(2)">عملکرد</button>
+        <button class="sub-tab" data-tab="3" onclick="switchTab(3)">ابزارها</button>
       </div>
 
-      <!-- Bottom Navigation -->
-      <nav class="bottom-nav">
-        <button class="nav-item active" data-tab="home" onclick="switchTab('home')">
-          <span class="nav-icon">🏠</span>
-          <span class="nav-label">خانه</span>
-        </button>
-        <button class="nav-item" data-tab="signals" onclick="switchTab('signals')">
-          <span class="nav-icon">📊</span>
-          <span class="nav-label">سیگنال‌ها</span>
-        </button>
-        <button class="nav-item" data-tab="performance" onclick="switchTab('performance')">
-          <span class="nav-icon">📈</span>
-          <span class="nav-label">عملکرد</span>
-        </button>
-        <button class="nav-item" data-tab="tools" onclick="switchTab('tools')">
-          <span class="nav-icon">🔧</span>
-          <span class="nav-label">ابزارها</span>
-        </button>
-      </nav>
-
-      <!-- Tab Content: Home -->
-      <div id="tab-home" class="tab-content active">
-        <div class="content-area">
-          <!-- Stats Cards -->
-          <div class="stats-grid">
-            <div class="stat-card cyan">
-              <div class="stat-value" id="stat-total">12</div>
-              <div class="stat-label">سیگنال فعال</div>
+      <!-- ====== TAB 0: Dashboard ====== -->
+      <div id="tab-0" class="tab-content active">
+        <!-- Brand Header -->
+        <div class="brand-header">
+          <div class="brand-logo-row">
+            <div class="brand-logo-sm">IBO</div>
+            <div>
+              <div class="brand-motto">اولین و تنها پلتفرم رسمی سیگنال باینری آپشن</div>
             </div>
-            <div class="stat-card green">
-              <div class="stat-value" id="stat-winrate">78%</div>
-              <div class="stat-label">نرخ برد</div>
-            </div>
-            <div class="stat-card purple">
-              <div class="stat-value" id="stat-profit">+$2,450</div>
-              <div class="stat-label">سود امروز</div>
-            </div>
-          </div>
-
-          <!-- Market Marquee -->
-          <div class="marquee-container">
-            <div class="marquee" id="market-marquee"></div>
-          </div>
-
-          <!-- Quick Actions -->
-          <div class="section-title">دسترسی سریع</div>
-          <div class="quick-actions">
-            <div class="action-card" onclick="switchTab('signals')">
-              <span class="action-icon">📊</span>
-              <span class="action-label">سیگنال‌ها</span>
-            </div>
-            <div class="action-card" onclick="openSubscriptions()">
-              <span class="action-icon">💎</span>
-              <span class="action-label">اشتراک</span>
-            </div>
-            <div class="action-card" onclick="openMarkets()">
-              <span class="action-icon">🌍</span>
-              <span class="action-label">بازارها</span>
-            </div>
-            <div class="action-card" onclick="openTutorial()">
-              <span class="action-icon">📚</span>
-              <span class="action-label">آموزش</span>
-            </div>
-          </div>
-
-          <!-- Active Signals Preview -->
-          <div class="section-title">سیگنال‌های اخیر</div>
-          <div id="home-signals" class="signals-list"></div>
-        </div>
-      </div>
-
-      <!-- Tab Content: Signals -->
-      <div id="tab-signals" class="tab-content">
-        <div class="content-area">
-          <!-- Filter Bar -->
-          <div class="filter-bar">
-            <button class="filter-chip active" data-cat="ALL" onclick="filterCategory('ALL')">همه</button>
-            <button class="filter-chip" data-cat="FOREX" onclick="filterCategory('FOREX')">فارکس</button>
-            <button class="filter-chip" data-cat="OTC" onclick="filterCategory('OTC')">OTC</button>
-            <button class="filter-chip" data-cat="CRYPTO" onclick="filterCategory('CRYPTO')">کریپتو</button>
-            <button class="filter-chip" data-cat="COMMODITIES" onclick="filterCategory('COMMODITIES')">طلا</button>
-          </div>
-          <!-- Direction Filter -->
-          <div class="filter-bar secondary">
-            <button class="filter-chip active" data-dir="ALL" onclick="filterDirection('ALL')">همه</button>
-            <button class="filter-chip call" data-dir="CALL" onclick="filterDirection('CALL')">📈 CALL</button>
-            <button class="filter-chip put" data-dir="PUT" onclick="filterDirection('PUT')">📉 PUT</button>
-          </div>
-          <div id="signals-list" class="signals-list"></div>
-        </div>
-      </div>
-
-      <!-- Tab Content: Performance -->
-      <div id="tab-performance" class="tab-content">
-        <div class="content-area">
-          <div class="perf-header">
-            <div class="perf-stat">
-              <div class="perf-value green" id="perf-win">47</div>
-              <div class="perf-label">برد</div>
-            </div>
-            <div class="perf-stat">
-              <div class="perf-value red" id="perf-loss">13</div>
-              <div class="perf-label">باخت</div>
-            </div>
-            <div class="perf-stat">
-              <div class="perf-value cyan" id="perf-total">60</div>
-              <div class="perf-label">کل</div>
-            </div>
-          </div>
-          <div class="chart-container">
-            <div class="chart-title">نمودار عملکرد ۷ روز اخیر</div>
-            <canvas id="perf-chart" width="350" height="200"></canvas>
-          </div>
-          <div class="history-section">
-            <div class="section-title">تاریخچه سیگنال‌ها</div>
-            <div id="history-list" class="signals-list"></div>
           </div>
         </div>
+
+        <!-- Hero Card (exact match) -->
+        <div class="hero-card">
+          <div class="hero-top">
+            <div>
+              <div class="hero-welcome">خوش آمدید، تریدر محترم</div>
+              <div class="hero-brand">IBO Trading AI</div>
+            </div>
+            <div class="hero-plan" onclick="switchTab(3)">
+              <span class="hero-diamond">💎</span>
+              <span id="user-plan">اشتراک ویژه VIP (فعال)</span>
+            </div>
+          </div>
+          <div class="hero-stats">
+            <div>
+              <div class="hero-stat-label">سود خالص هفتگی</div>
+              <div class="hero-stat-value blue">+۲,۴۵۰,۰۰۰ تومان</div>
+            </div>
+            <div style="text-align:left">
+              <div class="hero-stat-label">ضریب موفقیت AI</div>
+              <div class="hero-stat-value green">۸۲.۴٪</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hot Signal -->
+        <div class="section-header">
+          <span class="section-title">سیگنال برگزیده هوش مصنوعی (VIP)</span>
+          <span class="section-more" onclick="switchTab(1)">مشاهده همه &gt;</span>
+        </div>
+        <div id="hot-signal"></div>
+
+        <!-- Quick Actions (exact match Android 4 buttons) -->
+        <div class="section-title">دسترسی سریع و امکانات</div>
+        <div class="quick-actions">
+          <div class="action-btn" onclick="switchTab(1)">
+            <div class="action-icon cyan-bg">📈</div>
+            <span>سیگنال‌ها</span>
+          </div>
+          <div class="action-btn" onclick="showRiskCalc()">
+            <div class="action-icon mint-bg">🧮</div>
+            <span>مدیریت ریسک</span>
+          </div>
+          <div class="action-btn" onclick="showJournal()">
+            <div class="action-icon purple-bg">📓</div>
+            <span>ژورنال ترید</span>
+          </div>
+          <div class="action-btn" onclick="openSupport()">
+            <div class="action-icon peach-bg">💬</div>
+            <span>پشتیبانی</span>
+          </div>
+        </div>
+
+        <!-- Market Marquee -->
+        <div class="marquee-wrap">
+          <div class="marquee" id="marquee"></div>
+        </div>
+
+        <!-- Recent Signals -->
+        <div class="section-title">سیگنال‌های اخیر</div>
+        <div id="home-signals"></div>
       </div>
 
-      <!-- Tab Content: Tools -->
-      <div id="tab-tools" class="tab-content">
-        <div class="content-area">
-          <div class="section-title">ابزارهای ترید</div>
-          <div class="tools-grid">
-            <div class="tool-card" onclick="openRiskCalculator()">
-              <span class="tool-icon">🧮</span>
-              <span class="tool-label">محاسبه‌گر ریسک</span>
-            </div>
-            <div class="tool-card" onclick="openJournal()">
-              <span class="tool-icon">📓</span>
-              <span class="tool-label">دفتر ترید</span>
-            </div>
-            <div class="tool-card" onclick="openSupport()">
-              <span class="tool-icon">💬</span>
-              <span class="tool-label">پشتیبانی</span>
-            </div>
-            <div class="tool-card" onclick="openSettings()">
-              <span class="tool-icon">⚙️</span>
-              <span class="tool-label">تنظیمات</span>
-            </div>
+      <!-- ====== TAB 1: Signals ====== -->
+      <div id="tab-1" class="tab-content">
+        <!-- Category Filter -->
+        <div class="filter-row">
+          <button class="filter-chip active" onclick="filterCat('ALL',this)">همه</button>
+          <button class="filter-chip" onclick="filterCat('FOREX',this)">فارکس</button>
+          <button class="filter-chip" onclick="filterCat('OTC',this)">OTC</button>
+          <button class="filter-chip" onclick="filterCat('CRYPTO',this)">کریپتو</button>
+          <button class="filter-chip" onclick="filterCat('COMMODITIES',this)">طلا</button>
+        </div>
+        <!-- Direction Filter -->
+        <div class="filter-row">
+          <button class="filter-chip active" onclick="filterDir('ALL',this)">همه</button>
+          <button class="filter-chip call-chip" onclick="filterDir('CALL',this)">📈 CALL</button>
+          <button class="filter-chip put-chip" onclick="filterDir('PUT',this)">📉 PUT</button>
+        </div>
+        <div id="signals-list"></div>
+      </div>
+
+      <!-- ====== TAB 2: Performance ====== -->
+      <div id="tab-2" class="tab-content">
+        <div class="perf-stats">
+          <div class="perf-card green-card">
+            <div class="perf-num green" id="p-won">0</div>
+            <div class="perf-lbl">برد</div>
           </div>
-          <!-- Risk Calculator -->
-          <div id="risk-calc" class="risk-calculator hidden">
-            <div class="section-title">محاسبه‌گر مدیریت سرمایه</div>
-            <div class="calc-field">
-              <label>موجودی حساب ($)</label>
-              <input type="number" id="calc-balance" value="1000" oninput="calcRisk()">
-            </div>
-            <div class="calc-field">
-              <label>درصد ریسک هر معامله (%)</label>
-              <input type="number" id="calc-percent" value="2" oninput="calcRisk()">
-            </div>
-            <div class="calc-field">
-              <label>نرخ پرداخت (%)</label>
-              <input type="number" id="calc-payout" value="92" oninput="calcRisk()">
-            </div>
-            <div class="calc-result" id="calc-result">
-              <div>مبلغ هر معامله: <strong>$20</strong></div>
-              <div>سود بالقوه: <strong>$18.40</strong></div>
-              <div>ضرر بالقوه: <strong>$20</strong></div>
-            </div>
+          <div class="perf-card red-card">
+            <div class="perf-num red" id="p-lost">0</div>
+            <div class="perf-lbl">باخت</div>
           </div>
+          <div class="perf-card purple-card">
+            <div class="perf-num purple" id="p-total">0</div>
+            <div class="perf-lbl">کل</div>
+          </div>
+        </div>
+        <div class="chart-box">
+          <div class="chart-label">نمودار عملکرد ۷ روز اخیر</div>
+          <canvas id="chart" width="350" height="180"></canvas>
+        </div>
+        <div class="section-title">تاریخچه سیگنال‌ها</div>
+        <div id="history-list"></div>
+      </div>
+
+      <!-- ====== TAB 3: Tools ====== -->
+      <div id="tab-3" class="tab-content">
+        <div class="section-title">ابزارهای ترید</div>
+        <div class="tools-grid">
+          <div class="tool-card" onclick="showRiskCalc()">
+            <div class="tool-icon">🧮</div>
+            <div>محاسبه‌گر ریسک</div>
+          </div>
+          <div class="tool-card" onclick="showJournal()">
+            <div class="tool-icon">📓</div>
+            <div>دفتر ترید</div>
+          </div>
+          <div class="tool-card" onclick="openSupport()">
+            <div class="tool-icon">💬</div>
+            <div>پشتیبانی ۲۴/۷</div>
+          </div>
+          <div class="tool-card" onclick="openSettings()">
+            <div class="tool-icon">⚙️</div>
+            <div>تنظیمات</div>
+          </div>
+        </div>
+
+        <!-- Subscription Plans -->
+        <div class="section-title">پلن‌های اشتراک</div>
+        <div id="plans-list"></div>
+
+        <!-- Risk Calculator -->
+        <div id="risk-calc" class="risk-calc hidden">
+          <div class="section-title">محاسبه‌گر مدیریت سرمایه</div>
+          <div class="calc-field">
+            <label>موجودی حساب ($)</label>
+            <input type="number" id="calc-bal" value="1000" oninput="calcRisk()">
+          </div>
+          <div class="calc-field">
+            <label>درصد ریسک هر معامله (%)</label>
+            <input type="number" id="calc-pct" value="2" oninput="calcRisk()">
+          </div>
+          <div class="calc-field">
+            <label>نرخ پرداخت (%)</label>
+            <input type="number" id="calc-pay" value="92" oninput="calcRisk()">
+          </div>
+          <div class="calc-result" id="calc-result"></div>
         </div>
       </div>
 
       <!-- Signal Detail Modal -->
-      <div id="signal-modal" class="modal hidden" onclick="closeSignalModal(event)">
-        <div class="modal-content" onclick="event.stopPropagation()">
-          <div class="modal-header">
-            <h3 id="modal-asset"></h3>
-            <button class="modal-close" onclick="closeSignalModal()">✕</button>
+      <div id="signal-modal" class="modal hidden" onclick="closeModal(event,'signal-modal')">
+        <div class="modal-sheet" onclick="event.stopPropagation()">
+          <div class="modal-drag"></div>
+          <div class="modal-head">
+            <h3 id="m-asset"></h3>
+            <button onclick="document.getElementById('signal-modal').classList.add('hidden')">✕</button>
           </div>
-          <div id="modal-body" class="modal-body"></div>
+          <div id="m-body" class="modal-body"></div>
         </div>
       </div>
 
       <!-- Settings Modal -->
-      <div id="settings-modal" class="modal hidden" onclick="closeSettings(event)">
-        <div class="modal-content" onclick="event.stopPropagation()">
-          <div class="modal-header">
+      <div id="settings-modal" class="modal hidden" onclick="closeModal(event,'settings-modal')">
+        <div class="modal-sheet" onclick="event.stopPropagation()">
+          <div class="modal-drag"></div>
+          <div class="modal-head">
             <h3>تنظیمات</h3>
-            <button class="modal-close" onclick="closeSettings()">✕</button>
+            <button onclick="document.getElementById('settings-modal').classList.add('hidden')">✕</button>
           </div>
           <div class="settings-body">
-            <div class="setting-item">
-              <span>اعلان‌های سیگنال</span>
-              <label class="toggle"><input type="checkbox" checked><span class="slider"></span></label>
-            </div>
-            <div class="setting-item">
-              <span>صدای هشدار</span>
-              <label class="toggle"><input type="checkbox" checked><span class="slider"></span></label>
-            </div>
-            <div class="setting-item">
-              <span>زبان</span>
-              <select id="lang-select" onchange="changeLang(this.value)">
-                <option value="fa">فارسی</option>
-                <option value="en">English</option>
-                <option value="ar">العربية</option>
-                <option value="tr">Türkçe</option>
-                <option value="ru">Русский</option>
-                <option value="es">Español</option>
+            <div class="set-row"><span>اعلان‌های سیگنال</span><label class="tog"><input type="checkbox" checked><span class="sl"></span></label></div>
+            <div class="set-row"><span>صدای هشدار</span><label class="tog"><input type="checkbox" checked><span class="sl"></span></label></div>
+            <div class="set-row"><span>زبان</span>
+              <select onchange="document.documentElement.lang=this.value;document.documentElement.dir=(this.value==='fa'||this.value==='ar')?'rtl':'ltr'">
+                <option value="fa">فارسی</option><option value="en">English</option><option value="ar">العربية</option>
+                <option value="tr">Türkçe</option><option value="ru">Русский</option><option value="es">Español</option>
               </select>
             </div>
-            <div class="setting-item">
-              <span>نسخه PWA</span>
-              <span class="setting-value" id="pwa-version">1.0.0</span>
-            </div>
+            <div class="set-row"><span>نسخه</span><span class="set-val">PWA 1.0.0</span></div>
           </div>
         </div>
       </div>
     </div>
   </div>
-
   <script src="app.js"></script>
 </body>
 </html>
