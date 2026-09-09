@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { rateLimit } from 'express-rate-limit';
 import { errorHandler } from './middleware/error';
 import { getHealth } from './modules/health/health.controller';
 import { register, login, getProfile } from './modules/users/users.controller';
@@ -60,12 +61,22 @@ app.use((req, res, next) => {
 
 const prefix = process.env.API_PREFIX || '/api/v1';
 
+// LOGIN BRUTE-FORCE PROTECTION (Part 3 A2): per-IP rate limit on auth endpoints.
+// 20 attempts / 15 min per IP for register+login combined; 429 on exceed.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { message: 'تعداد تلاش‌های ورود بیش از حد مجاز است. لطفاً ۱۵ دقیقه بعد تلاش کنید.' },
+});
+
 // HEALTH API
 app.get(`${prefix}/health`, getHealth);
 
 // AUTH / IDENTITY APIS
-app.post(`${prefix}/auth/register`, register);
-app.post(`${prefix}/auth/login`, login);
+app.post(`${prefix}/auth/register`, authLimiter as any, register);
+app.post(`${prefix}/auth/login`, authLimiter as any, login);
 app.get(`${prefix}/auth/profile`, authenticateToken as any, getProfile as any);
 
 // SUBSCRIPTIONS APIS

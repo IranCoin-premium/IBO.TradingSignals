@@ -258,6 +258,8 @@ class MainActivity : ComponentActivity() {
                                         brokers = viewModel.brokers,
                                         userPlan = userPlan,
                                         tradeLogs = tradeLogs,
+                                        // Part 3 B8: feed shows the cached-data warning when offline.
+                                        isOnline = offlineCacheStatus?.isOnline ?: true,
                                         onAddTradeLog = { viewModel.addTradeLog(it) },
                                         onOpenSubscriptions = {
                                             navController.navigate(Screen.Subscriptions.route)

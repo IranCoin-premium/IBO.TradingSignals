@@ -44,6 +44,9 @@ fun SignalsHomeScreen(
     brokers: List<BrokerItem>,
     userPlan: String,
     tradeLogs: List<com.example.data.local.TradeLogEntity> = emptyList(),
+    // Part 3 B8: offline-cache clarity — when false, cached (possibly outdated)
+    // signals are explicitly labeled in the feed instead of looking live.
+    isOnline: Boolean = true,
     onOpenSubscriptions: () -> Unit,
     onOpenSupport: () -> Unit,
     onOpenMarkets: () -> Unit,
@@ -437,7 +440,32 @@ fun SignalsHomeScreen(
 
                         // ۵. آخرین سیگنال‌های دریافتی
                         item {
-                            Text("جدیدترین سیگنال‌های لحظه‌ای", fontWeight = FontWeight.Bold, fontSize = 13.5.sp, color = TextDarkPrimary)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("جدیدترین سیگنال‌های لحظه‌ای", fontWeight = FontWeight.Bold, fontSize = 13.5.sp, color = TextDarkPrimary)
+                                if (!isOnline) {
+                                    // Part 3 B8: stale-signal warning — cached data must never
+                                    // look like fresh market signals (financial-loss risk).
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(AmberGold.copy(alpha = 0.15f))
+                                            .border(1.dp, AmberGold.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+                                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                                            .testTag("signals_cached_banner")
+                                    ) {
+                                        Text(
+                                            text = "⚠️ آفلاین — داده‌های کش‌شده، ممکن است قدیمی باشند",
+                                            color = AmberGold,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 11.sp
+                                        )
+                                    }
+                                }
+                            }
                         }
 
                         items(signals.take(4), key = { it.id }) { sig ->

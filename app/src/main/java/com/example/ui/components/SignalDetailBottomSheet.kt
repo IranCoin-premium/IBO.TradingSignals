@@ -954,6 +954,16 @@ fun SignalDetailBottomSheet(
                         lineHeight = 16.sp,
                         modifier = Modifier.testTag("signal_detail_risk_disclosure")
                     )
+                    // Part 3 B2: plain-language companion to the legal text — explains the
+                    // risk without altering the mandatory wording above.
+                    Text(
+                        text = "به زبان ساده: قیمت ممکن است هر لحظه برخلاف پیش‌بینی حرکت کند و کل مبلغ معامله از دست برود؛ فقط با پولی وارد شوید که از دست دادنش برایتان قابل تحمل است.",
+                        color = SoftCardPeachAccent,
+                        fontSize = 11.sp,
+                        lineHeight = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.testTag("signal_detail_risk_plain")
+                    )
                 }
             }
         }

@@ -25,6 +25,8 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.CurrencyBitcoin
 import androidx.compose.material.icons.filled.Diamond
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Payment
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Verified
@@ -276,6 +278,60 @@ fun SubscriptionScreen(
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
                 )
+            }
+        }
+
+        // Subscription & refund terms — one tap away (Part 3 B4): conditions of
+        // activation, cancellation and refund per PURCHASE_AND_SIGNAL_FLOW.md, in the
+        // same screen reachable from Settings → اشتراک VIP.
+        item {
+            var termsExpanded by remember { mutableStateOf(false) }
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .clickable { termsExpanded = !termsExpanded }
+                    .testTag("subscription_terms_card"),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = SoftUiSurface)
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "اشتراک و بازپرداخت — شرایط",
+                            color = TextDarkPrimary,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.5.sp
+                        )
+                        Icon(
+                            imageVector = if (termsExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = if (termsExpanded) "بستن" else "نمایش شرایط",
+                            tint = SoftCardPurpleAccent,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    if (termsExpanded) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = "• اشتراک با تایید قطعی پرداخت در سرور فعال می‌شود (تراکنش رمزارزی، رسید بانکی یا خرید درون‌برنامه‌ای فروشگاه‌ها).",
+                            color = TextDarkSecondary, fontSize = 11.sp, lineHeight = 17.sp
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "• لغو اشتراک: از همین صفحه، در هر زمان. دسترسی تا پایان دوره‌ی پرداخت‌شده باقی می‌ماند.",
+                            color = TextDarkSecondary, fontSize = 11.sp, lineHeight = 17.sp
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "• بازپرداخت فقط با تایید ادمین و طبق سابقه‌ی تراکنش صادر می‌شود؛ درخواست از مسیر پشتیبانی ۲۴/۷ ثبت و نتیجه در همین صفحه نمایش داده می‌شود.",
+                            color = TextDarkSecondary, fontSize = 11.sp, lineHeight = 17.sp
+                        )
+                    }
+                }
             }
         }
 
